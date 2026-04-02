@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>コスメ売上分析</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--p:#5d8a68;--pl:#d5e8d4;--pd:#3e6b4e;--bg:#f5f7f5;--card:#fff;--t:#2d3a2e;--tl:#8a9a8c;--bd:#dde8dd;--ok:#43a047;--warn:#d4860b;--ng:#c0392b;--info:#3a7d6e}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;background:var(--bg);color:var(--t);min-height:100vh;padding-bottom:60px;font-size:14px;-webkit-text-size-adjust:100%}
+
+/* Header */
+.hd{background:var(--p);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:100}
+.hd h1{font-size:15px;font-weight:700}
+
+/* Nav */
+.bn{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;box-shadow:0 -1px 6px rgba(0,0,0,.08);z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px 4px;font-size:9px;color:#aaa;cursor:pointer;border:none;background:none;-webkit-tap-highlight-color:transparent}
+.ni.on{color:var(--p)}.ni svg{width:22px;height:22px;margin-bottom:2px}
+
+/* Pages */
+.pg{display:none;padding:12px 12px 20px}.pg.on{display:block}
+
+/* Cards */
+.c{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.ct{font-size:11px;font-weight:600;color:var(--tl);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+
+/* KPI boxes */
+.kg{display:grid;gap:6px}
+.kb{background:var(--bg);border-radius:10px;padding:10px 6px;text-align:center}
+.kl{font-size:9px;color:var(--tl);margin-bottom:2px}.kv{font-size:17px;font-weight:800}.ks{font-size:9px;color:var(--tl);margin-top:2px}
+.kv.ok{color:var(--ok)}.kv.warn{color:var(--warn)}.kv.ng{color:var(--ng)}
+
+/* Progress */
+.pb{width:100%;height:8px;background:#eee;border-radius:4px;overflow:hidden}
+.pf{height:100%;border-radius:4px;transition:width .4s}
+.pl{display:flex;justify-content:space-between;font-size:10px;color:var(--tl);margin-top:4px}
+
+/* Forms */
+.fg{margin-bottom:10px}.fl{display:block;font-size:11px;font-weight:600;margin-bottom:4px;color:#666}
+.fi{width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-size:16px;background:#fff;-webkit-appearance:none}
+.fi:focus{outline:none;border-color:var(--p)}
+textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
+.fr{display:flex;gap:8px}.fr .fg{flex:1}
+.hint{font-size:9px;color:var(--tl);font-weight:400}
+
+/* Buttons */
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn:active{opacity:.8}.bp{background:var(--p);color:#fff}.bs2{background:#eee;color:var(--t)}.bd2{background:var(--ng);color:#fff}
+.bsm{display:inline-block;width:auto;padding:6px 14px;font-size:12px;border-radius:8px}
+
+/* Tables */
+.dt{width:100%;border-collapse:collapse;font-size:11px}
+.dt th{text-align:left;padding:6px 3px;border-bottom:2px solid var(--bd);font-weight:600;color:var(--tl);font-size:9px;white-space:nowrap}
+.dt td{padding:7px 3px;border-bottom:1px solid #f0f0f0}.dt .n{text-align:right;font-variant-numeric:tabular-nums}
+.dt .pos{color:var(--ok)}.dt .neg{color:var(--ng)}
+
+/* Tags */
+.tg{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.tg-up{background:#e8f5e9;color:var(--ok)}.tg-dn{background:#ffebee;color:var(--ng)}
+
+/* Tabs */
+.tabs{display:flex;margin-bottom:12px;background:#eee;border-radius:10px;padding:3px}
+.tab{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:600;border:none;background:none;border-radius:8px;cursor:pointer;color:var(--tl)}
+.tab.on{background:#fff;color:var(--t);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+/* Month selector */
+.ms{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:12px}
+.ms button{width:36px;height:36px;border-radius:50%;border:none;background:#eee;font-size:16px;cursor:pointer}
+.ms .cur{font-size:15px;font-weight:700}
+
+/* Action effect */
+.ae{border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.ae-act{font-size:12px;font-weight:700;margin-bottom:3px}
+.ae-kpi{display:flex;align-items:center;gap:6px;font-size:13px}
+.ae-trend{font-weight:800;font-size:15px}
+
+/* Suggestion */
+.sug{padding:10px 12px;border-radius:10px;margin-bottom:6px;font-size:12px}
+.sug-t{font-weight:700;margin-bottom:2px}.sug-b{font-size:11px;color:#666;line-height:1.5}
+
+/* Promo */
+.promo-bar{background:linear-gradient(135deg,#e3f2fd,#e8eaf6);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.promo-name{font-weight:700;font-size:13px;color:var(--info)}.promo-date{font-size:10px;color:var(--tl)}
+
+/* Chips */
+.chip-c{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--pl);border-radius:14px;font-size:11px}
+.chip-x{border:none;background:none;font-size:14px;cursor:pointer;color:var(--pd)}
+
+/* Misc */
+.del{border:none;background:none;color:var(--ng);font-size:16px;cursor:pointer;padding:4px}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mb8{margin-bottom:8px}
+.ts{font-size:11px}.ttl{color:var(--tl)}.tc{text-align:center}
+.ag{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.ab{background:var(--bg);border-radius:8px;padding:8px;text-align:center}
+.al{font-size:8px;color:var(--tl)}.av{font-size:14px;font-weight:700;margin-top:2px}
+.fold{background:none;border:none;color:var(--info);font-size:12px;cursor:pointer;padding:6px 0}
+/* Bulk */
+.bk-i{width:48px;padding:4px;font-size:12px;border:1px solid var(--bd);border-radius:4px;text-align:right;-webkit-appearance:none}
+.bk-i:focus{border-color:var(--p);outline:none}
+/* Report */
+.rpt-box{background:#f8f8f8;border:1px solid var(--bd);border-radius:10px;padding:12px;font-size:11px;line-height:1.7;white-space:pre-wrap;font-family:inherit;max-height:50vh;overflow-y:auto}
+.copy-btn{float:right;background:var(--p);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="hd"><h1>コスメ売上分析</h1></div>
+
+<!-- ===== HOME ===== -->
+<div id="pg-home" class="pg on">
+  <div class="ms"><button onclick="chMo(-1)">&lt;</button><span class="cur" id="d-mo"></span><button onclick="chMo(1)">&gt;</button></div>
+
+  <!-- 1. Action Effect -->
+  <div class="c" style="border-left:4px solid var(--p)">
+    <div class="ct">アクション効果</div>
+    <div id="action-fx"></div>
+  </div>
+
+  <!-- 2. Budget Progress -->
+  <div class="c">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="ct" style="margin:0">予算進捗</div>
+      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','year')" style="font-size:9px;padding:3px 8px">年</button><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="bdg" onclick="setPeriod('bdg','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+    </div>
+    <div id="budget-trk"></div>
+  </div>
+
+  <!-- 3. Improvement Suggestions -->
+  <div class="c">
+    <div class="ct">改善ポイント</div>
+    <div id="improve"></div>
+  </div>
+
+  <!-- 4. KPIs -->
+  <div class="c">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="ct" style="margin:0">KPI</div>
+      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="kpi" onclick="setPeriod('kpi','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+    </div>
+    <div id="kpi-display"></div>
+  </div>
+
+  <!-- 5. Activity with rates -->
+  <div class="c">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="ct" style="margin:0">接客指標</div>
+      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="act" onclick="setPeriod('act','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="act" onclick="setPeriod('act','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+    </div>
+    <div id="act-rates"></div>
+  </div>
+
+  <!-- 6. Category with budget/SOB/LY -->
+  <div class="c">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="ct" style="margin:0">カテゴリ別</div>
+      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="cat" onclick="setPeriod('cat','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="cat" onclick="setPeriod('cat','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+    </div>
+    <div id="cat-detail"></div>
+  </div>
+
+  <!-- 7. vs LY -->
+  <div class="c">
+    <button class="fold" onclick="toggleEl('ly-detail')">前年比を見る</button>
+    <div id="ly-detail" style="display:none"><div id="vs-ly"></div></div>
+  </div>
+
+  <!-- Report button -->
+  <button class="btn bs2 mt8" onclick="openRpt()">週次レポートを生成</button>
+</div>
+
+<!-- ===== INPUT ===== -->
+<div id="pg-input" class="pg">
+  <div class="tabs">
+    <button class="tab on" onclick="siTab(this,'single')">今日の入力</button>
+    <button class="tab" onclick="siTab(this,'bulk')">一括入力</button>
+  </div>
+
+  <!-- Single -->
+  <div id="input-single">
+    <div class="c">
+      <div class="fr"><div class="fg" style="flex:2"><label class="fl">日付</label><input type="date" class="fi" id="i-date"></div><div class="fg" style="flex:1"><label class="fl">スタッフ</label><select class="fi" id="i-staff" style="font-size:14px"></select></div></div>
+      <div class="fg"><label class="fl">売上 <span class="hint">(千円)</span></label><input type="number" class="fi" id="i-sales" placeholder="150 = 15万円" inputmode="numeric"></div>
+      <div class="ts ttl mb8" id="i-bdg-info"></div>
+      <div class="fr"><div class="fg"><label class="fl">Traffic</label><input type="number" class="fi" id="i-traf" inputmode="numeric"></div><div class="fg"><label class="fl">Trans</label><input type="number" class="fi" id="i-trans" inputmode="numeric"></div><div class="fg"><label class="fl">UPT</label><input type="number" class="fi" id="i-upt" inputmode="decimal" step="0.1"></div></div>
+      <div class="ts ttl" id="i-calc"></div>
+    </div>
+    <div class="c">
+      <div class="ct">接客数値</div>
+      <div class="fr"><div class="fg"><label class="fl">AP</label><input type="number" class="fi" id="i-ap" inputmode="numeric"></div><div class="fg"><label class="fl">SC</label><input type="number" class="fi" id="i-sc" inputmode="numeric"></div><div class="fg"><label class="fl">1-2D</label><input type="number" class="fi" id="i-d12" inputmode="numeric"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">3D</label><input type="number" class="fi" id="i-d3" inputmode="numeric"></div><div class="fg"><label class="fl">FC</label><input type="number" class="fi" id="i-fc" inputmode="numeric"></div><div class="fg"><label class="fl">BS</label><input type="number" class="fi" id="i-bs" inputmode="numeric"></div></div>
+    </div>
+    <div class="c">
+      <div class="ct">カテゴリ <span class="hint">(千円)</span></div>
+      <div id="cat-in"></div>
+    </div>
+    <button class="fold" onclick="toggleEl('note-area')">+ メモ（任意）</button>
+    <div id="note-area" style="display:none"><div class="c"><div class="fg" style="margin:0"><textarea class="fi" id="i-note" placeholder="気づき、天候、イベントなど"></textarea></div></div></div>
+    <button class="btn bp mt8" onclick="saveRec()">登録</button>
+  </div>
+
+  <!-- Bulk -->
+  <div id="input-bulk" style="display:none">
+    <div class="tabs">
+      <button class="tab on" onclick="bkTab(this,'ty')">TY日別</button>
+      <button class="tab" onclick="bkTab(this,'tymo')">TY月別</button>
+      <button class="tab" onclick="bkTab(this,'lymo')">LY月別</button>
+      <button class="tab" onclick="bkTab(this,'lyd')">LY日別</button>
+    </div>
+    <!-- TY Daily -->
+    <div id="bk-ty">
+      <div class="c"><div class="fr"><div class="fg"><label class="fl">開始日</label><input type="date" class="fi" id="bk-start" onchange="rBulkTY()"></div><div class="fg"><label class="fl">日数</label><select class="fi" id="bk-days" onchange="rBulkTY()"><option value="7">7日</option><option value="14">14日</option><option value="31" selected>1ヶ月</option></select></div></div></div>
+      <div class="c" style="overflow-x:auto;padding:8px"><div id="bk-ty-grid"></div></div>
+      <button class="btn bp mt8" onclick="saveBulkTY()">登録</button>
+    </div>
+    <!-- TY Monthly -->
+    <div id="bk-tymo" style="display:none">
+      <div class="c">
+        <div class="ts ttl mb8">今年の月別合計を入力（過去月の結果をまとめて）</div>
+        <div class="fg"><label class="fl">年度</label><select class="fi" id="tymo-year" onchange="rTYMo()" style="font-size:14px"></select></div>
+      </div>
+      <div class="c" style="overflow-x:auto;padding:8px"><div id="tymo-grid"></div></div>
+      <button class="btn bp mt8" onclick="saveTYMo()">登録</button>
+    </div>
+    <!-- LY Monthly -->
+    <div id="bk-lymo" style="display:none">
+      <div class="c">
+        <div class="ts ttl mb8">前年の月別合計を入力（1年分まとめて）</div>
+        <div class="fg"><label class="fl">年度</label><select class="fi" id="lymo-year" onchange="rLYMo()" style="font-size:14px"></select></div>
+      </div>
+      <div class="c" style="overflow-x:auto;padding:8px"><div id="lymo-grid"></div></div>
+      <button class="btn bp mt8" onclick="saveLYMo()">登録</button>
+    </div>
+    <!-- LY Daily (simple) -->
+    <div id="bk-lyd" style="display:none">
+      <div class="c"><div class="fr"><div class="fg"><label class="fl">開始日</label><input type="date" class="fi" id="lyd-start" onchange="rLYD()"></div><div class="fg"><label class="fl">日数</label><select class="fi" id="lyd-days" onchange="rLYD()"><option value="31" selected>1ヶ月</option><option value="7">7日</option></select></div></div>
+        <div class="ts ttl">売上・客数・Traffic・UPTのみ</div>
+      </div>
+      <div class="c" style="overflow-x:auto;padding:8px"><div id="lyd-grid"></div></div>
+      <button class="btn bp mt8" onclick="saveLYD()">登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PROMO ===== -->
+<div id="pg-promo" class="pg">
+  <div class="c">
+    <div class="ct">新規プロモーション</div>
+    <div class="fg"><label class="fl">プロモ名</label><input type="text" class="fi" id="pm-name" placeholder="例：春スキンケア強化"></div>
+    <div class="fr"><div class="fg"><label class="fl">開始</label><input type="date" class="fi" id="pm-start"></div><div class="fg"><label class="fl">終了</label><input type="date" class="fi" id="pm-end"></div></div>
+    <div class="ct mt8">アクション → 対象KPI</div>
+    <div class="ts ttl mb8">各アクションがどのKPIを上げたいか設定</div>
+    <div id="pm-acts"></div>
+    <button class="btn bs2 bsm mt8" onclick="addPmAct()">+ 追加</button>
+    <div class="ct mt12">カテゴリ別注力</div>
+    <div class="ts ttl mb8">カテゴリごとの方針（任意）</div>
+    <div id="pm-cats"></div>
+    <div class="ct mt12">強化商品</div>
+    <div class="fg"><input type="text" class="fi" id="pm-products" placeholder="例：ボディスクラブ、クレンジング（カンマ区切り）" style="font-size:13px"></div>
+    <button class="btn bp mt8" onclick="savePm()">登録</button>
+  </div>
+  <div class="c"><div class="ct">プロモ一覧</div><div id="pm-list"></div></div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="pg-set" class="pg">
+  <!-- Budget -->
+  <div class="c">
+    <div class="ct">日別予算 <span class="hint">(千円)</span></div>
+    <div class="fg"><label class="fl">月</label><input type="month" class="fi" id="s-bdg-mo" onchange="rBdg()"></div>
+    <div id="bdg-grid" style="max-height:260px;overflow-y:auto"></div>
+    <div class="fr mt8"><button class="btn bp" onclick="saveBdg()" style="flex:1">予算保存</button><div class="ts ttl" id="bdg-total" style="flex:1;text-align:right;padding-top:12px"></div></div>
+  </div>
+
+  <!-- KPI Targets -->
+  <div class="c">
+    <div class="ct">KPI目標</div>
+    <div class="fr"><div class="fg"><label class="fl">CVR(%)</label><input type="number" class="fi" id="s-cvr" inputmode="decimal" step="0.1"></div><div class="fg"><label class="fl">ATV(円)</label><input type="number" class="fi" id="s-atv" inputmode="numeric"></div><div class="fg"><label class="fl">UPT</label><input type="number" class="fi" id="s-upt" inputmode="decimal" step="0.1"></div></div>
+    <div class="ct mt8">ファネル目標(%)</div>
+    <div class="fr"><div class="fg"><label class="fl">AP率</label><input type="number" class="fi" id="s-fap" inputmode="decimal"></div><div class="fg"><label class="fl">SC率</label><input type="number" class="fi" id="s-fsc" inputmode="decimal"></div><div class="fg"><label class="fl">3デモ率</label><input type="number" class="fi" id="s-fd3" inputmode="decimal"></div><div class="fg"><label class="fl">FC紹介率</label><input type="number" class="fi" id="s-ffc" inputmode="decimal"></div></div>
+    <button class="btn bp mt8" onclick="saveTgt()">保存</button>
+  </div>
+
+  <!-- Categories -->
+  <div class="c">
+    <div class="ct">カテゴリ＆月間目標 <span class="hint">(千円)</span></div>
+    <div class="fr"><div class="fg" style="flex:2"><input type="text" class="fi" id="nc" placeholder="カテゴリ名"></div><div class="fg" style="flex:1"><button class="btn bp" onclick="addCat()" style="height:42px">追加</button></div></div>
+    <div id="cat-set"></div>
+  </div>
+
+  <!-- Staff -->
+  <div class="c">
+    <div class="ct">スタッフ</div>
+    <div class="fr"><div class="fg" style="flex:2"><input type="text" class="fi" id="ns" placeholder="名前"></div><div class="fg" style="flex:1"><button class="btn bp" onclick="addStf()" style="height:42px">追加</button></div></div>
+    <div class="chip-c" id="stf-ch"></div>
+  </div>
+
+  <!-- Data -->
+  <div class="c">
+    <div class="ct">データ</div>
+    <button class="btn bs2 mb8" onclick="expD()">エクスポート</button>
+    <button class="btn bs2 mb8" onclick="document.getElementById('impf').click()">インポート</button>
+    <input type="file" id="impf" accept=".json" style="display:none" onchange="impD(event)">
+    <button class="btn bd2" onclick="clrD()">全削除</button>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div id="rpt-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;padding:20px;overflow-y:auto">
+  <div style="background:#fff;border-radius:16px;padding:16px;max-width:500px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="font-size:15px">週次レポート</h3><button onclick="closeRpt()" style="border:none;background:#eee;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">×</button></div>
+    <div class="fg"><label class="fl">期間</label><select class="fi" id="rpt-period" onchange="genRpt()" style="font-size:13px"></select></div>
+    <div class="fg"><label class="fl">ニーズ・テーマ</label><textarea class="fi" id="rpt-needs" placeholder="例：乾燥対策ニーズ増"></textarea></div>
+    <div class="fg"><label class="fl">振り返り</label><textarea class="fi" id="rpt-comment" placeholder="例：天候不良でTraffic減"></textarea></div>
+    <button class="btn bp mb8" onclick="genRpt()">生成</button>
+    <div id="rpt-out"></div>
+  </div>
+</div>
+
+<nav class="bn">
+  <button class="ni on" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>ホーム</span></button>
+  <button class="ni" onclick="go('input')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>入力</span></button>
+  <button class="ni" onclick="go('promo')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>プロモ</span></button>
+  <button class="ni" onclick="go('set')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>設定</span></button>
+</nav>
+
+<script>
+const SK='cosme_v7';
+const DOW=['日','月','火','水','木','金','土'];
+const KPI_NAMES=['AP率','SC率','3デモ率','FC紹介率','CVR','ATV','UPT'];
+const PG=['home','input','promo','set'];
+
+function ld(){const r=localStorage.getItem(SK);if(r)return JSON.parse(r);return genTestData()}
+function genTestData(){
+  const D={records:[],lyRecords:[],lyMonthly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{'ボディケア':400,'フェイスケア':250,'フレグランス':200,'ギフト':150},budgets:{},categories:['ボディケア','フェイスケア','フレグランス','ギフト'],products:['ボディクリーム','ボディスクラブ','クレンジング','美容液'],staff:['田中','佐藤','鈴木'],promos:[{name:'春のスキンケア強化',start:'2026-03-15',end:'2026-04-15',actionItems:[{action:'入口でBS香り体験→声掛け',kpi:'AP率'},{action:'SC実施→肌タイプ別提案',kpi:'SC率'},{action:'洗う→磨く→潤すの3ステップ体験',kpi:'3デモ率'},{action:'BS→クリームのセット提案',kpi:'ATV'}]}]};
+  // March 2026 test data (31 days)
+  for(let d=1;d<=31;d++){
+    const ds='2026-03-'+String(d).padStart(2,'0');
+    const dow=new Date(2026,2,d).getDay();const isWe=dow===0||dow===6;
+    const base=isWe?130:95;const rand=()=>Math.round((Math.random()-.5)*30);
+    const sales=base+rand();const traffic=isWe?90+Math.round(Math.random()*40):55+Math.round(Math.random()*30);
+    const trans=Math.round(traffic*(0.45+Math.random()*0.15));
+    const ap=Math.round(traffic*(0.75+Math.random()*0.2));
+    const sc=Math.round(ap*(0.2+Math.random()*0.15));
+    const demo12=Math.round(ap*(0.2+Math.random()*0.15));
+    const demo3=Math.round(ap*(0.15+Math.random()*0.1));
+    const fc=Math.round(Math.random()*8);const bs=Math.round(Math.random()*10);
+    const upt=2.0+Math.round(Math.random()*12)/10;
+    const catBody=Math.round(sales*(.35+Math.random()*.1));
+    const catFace=Math.round(sales*(.2+Math.random()*.08));
+    const catFrag=Math.round(sales*(.12+Math.random()*.06));
+    const catGift=sales-catBody-catFace-catFrag;
+    D.records.push({date:ds,sales,traffic,trans,upt:Math.round(upt*10)/10,ap,sc,demo12,demo3,fc,bs,staff:['田中','佐藤','鈴木'][d%3],note:'',categories:{'ボディケア':catBody,'フェイスケア':catFace,'フレグランス':catFrag,'ギフト':Math.max(0,catGift)},products:{}});
+    // Budget
+    D.budgets[ds]=isWe?125:100;
+    D.budgetTrans[ds]=isWe?28:18;
+  }
+  // April 2026 (3 days)
+  for(let d=1;d<=3;d++){
+    const ds='2026-04-'+String(d).padStart(2,'0');
+    const sales=90+Math.round(Math.random()*30);const traffic=60+Math.round(Math.random()*20);
+    const trans=Math.round(traffic*0.5);const ap=Math.round(traffic*0.8);
+    D.records.push({date:ds,sales,traffic,trans,upt:2.3,ap,sc:Math.round(ap*0.25),demo12:Math.round(ap*0.25),demo3:Math.round(ap*0.15),fc:3,bs:4,staff:'田中',note:'',categories:{'ボディケア':Math.round(sales*0.4),'フェイスケア':Math.round(sales*0.22),'フレグランス':Math.round(sales*0.18),'ギフト':Math.round(sales*0.2)},products:{}});
+    D.budgets[ds]=100;D.budgetTrans[ds]=18;
+  }
+  // April budgets for rest of month
+  for(let d=4;d<=30;d++){const ds='2026-04-'+String(d).padStart(2,'0');const dow=new Date(2026,3,d).getDay();D.budgets[ds]=dow===0||dow===6?130:100;D.budgetTrans[ds]=dow===0||dow===6?28:18}
+  // LY Monthly (2025)
+  const lyMonths=[{s:280,tr:450,tn:85},{s:260,tr:420,tn:80},{s:310,tr:500,tn:95},{s:330,tr:520,tn:100},{s:300,tr:480,tn:90},{s:290,tr:460,tn:88},{s:350,tr:550,tn:105},{s:320,tr:510,tn:98},{s:340,tr:530,tn:102},{s:360,tr:560,tn:108},{s:380,tr:580,tn:112},{s:400,tr:600,tn:120}];
+  lyMonths.forEach((m,i)=>{const mk='2025-'+String(i+1).padStart(2,'0');
+    D.lyMonthly[mk]={sales:m.s*10,trans:m.tn*10,traffic:m.tr*10,upt:2.2,ap:Math.round(m.tr*8),sc:Math.round(m.tr*2.5),demo12:Math.round(m.tr*4),demo3:Math.round(m.tr*2.5),fc:Math.round(m.tn),bs:Math.round(m.tn*1.2),'cat-ボディケア':Math.round(m.s*3.5),'cat-フェイスケア':Math.round(m.s*2.5),'cat-フレグランス':Math.round(m.s*1.5),'cat-ギフト':Math.round(m.s*2.5)}});
+  return D}
+function sv(d){localStorage.setItem(SK,JSON.stringify(d))}
+let D=ld(),cM=new Date();
+
+// Nav
+function go(p){document.querySelectorAll('.pg').forEach(e=>e.classList.remove('on'));document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));document.getElementById('pg-'+p).classList.add('on');document.querySelectorAll('.ni')[PG.indexOf(p)].classList.add('on');({home:rHome,input:iInit,promo:rPm,set:rSet})[p]()}
+
+// Util
+function f$k(n){if(n==null||isNaN(n))return'-';const a=Math.abs(n),s=n<0?'-':'';if(a>=10){const man=Math.round(a/10);return s+man.toLocaleString()+'万'}return s+Math.round(a)+'千円'}
+function f$(n){return n==null||isNaN(n)?'-':'¥'+Math.round(n).toLocaleString()}
+function fN(n){return n==null||isNaN(n)?'-':Math.round(n).toLocaleString()}
+function fP(n){return n==null||isNaN(n)?'-':(Math.round(n*10)/10)+'%'}
+function fD(n){return n==null||isNaN(n)?'-':(Math.round(n*10)/10).toFixed(1)}
+function mK(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function mL(d){return d.getFullYear()+'年'+(d.getMonth()+1)+'月'}
+function gR(d){const k=mK(d);return D.records.filter(r=>r.date.substring(0,7)===k)}
+function gLY(d){const k=mK(d);return(D.lyRecords||[]).filter(r=>r.date.substring(0,7)===k)}
+function sm(rs,f){return rs.reduce((s,r)=>s+(r[f]||0),0)}
+function dim(d){return new Date(d.getFullYear(),d.getMonth()+1,0).getDate()}
+function td(){const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+function CVR(tr,tn){return tr>0?(tn/tr)*100:0}
+function ATV(s,tn){return tn>0?(s*1000)/tn:0}
+function avgUpt(rs){const u=rs.filter(r=>r.upt>0);return u.length?u.reduce((s,r)=>s+r.upt,0)/u.length:0}
+function rate(v,t){if(!t)return'';return v/t>=1?'◎':v/t>=.9?'○':v/t>=.7?'△':'×'}
+function fmtDate(d){return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+function toggleEl(id){const e=document.getElementById(id);e.style.display=e.style.display==='none'?'block':'none'}
+// Week Sun-Sat
+function weekRange(ds){const d=ds?new Date(ds):new Date();const sun=new Date(d);sun.setDate(d.getDate()-d.getDay());const sat=new Date(sun);sat.setDate(sun.getDate()+6);const f=x=>[x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(x.getDate()).padStart(2,'0')].join('-');return{s:f(sun),e:f(sat)}}
+function weekRecs(ds){const{s,e}=weekRange(ds);return D.records.filter(r=>r.date>=s&&r.date<=e)}
+function prevWeekRecs(ds){const{s}=weekRange(ds);const d=new Date(s);d.setDate(d.getDate()-7);return weekRecs([d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'))}
+function curPromo(){const t=td();return D.promos.find(p=>p.start<=t&&p.end>=t)}
+function kpi(rs){const s=sm(rs,'sales'),tr=sm(rs,'traffic'),tn=sm(rs,'trans'),ap=sm(rs,'ap'),sc=sm(rs,'sc'),d12=sm(rs,'demo12'),d3=sm(rs,'demo3'),dm=d12+d3,fc=sm(rs,'fc');return{sales:s,traffic:tr,trans:tn,cvr:CVR(tr,tn),atv:ATV(s,tn),upt:avgUpt(rs),apR:tr>0?(ap/tr)*100:0,scR:ap>0?(sc/ap)*100:0,d3R:dm>0?(d3/dm)*100:0,fcR:tn>0?(fc/tn)*100:0,ap,sc,d12,d3,fc,bs:sm(rs,'bs')}}
+function kpiVal(k,name){return{'AP率':k.apR,'SC率':k.scR,'3デモ率':k.d3R,'FC紹介率':k.fcR,'CVR':k.cvr,'ATV':k.atv,'UPT':k.upt}[name]||0}
+function kpiFmt(name){return{'AP率':fP,'SC率':fP,'3デモ率':fP,'FC紹介率':fP,'CVR':fP,'ATV':f$,'UPT':fD}[name]||fP}
+function kpiTgt(name){return{'AP率':D.funnel.ap,'SC率':D.funnel.sc,'3デモ率':D.funnel.d3,'FC紹介率':D.funnel.fc,'CVR':D.targets.cvr,'ATV':D.targets.atv,'UPT':D.targets.upt}[name]||0}
+
+// ===== HOME =====
+function chMo(d){cM=new Date(cM.getFullYear(),cM.getMonth()+d,1);rHome()}
+function rHome(){
+  document.getElementById('d-mo').textContent=mL(cM);
+  const rs=gR(cM),mk=mK(cM),k=kpi(rs);
+  const pm=curPromo();
+
+  // Action Effect
+  rActionFx(pm,rs);
+  // Budget
+  rBudgetTrk(rs,mk,k);
+  // Improve
+  rImprove(k);
+  // Store KPIs for period switching
+  window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._mk=mk;
+  setPeriod('bdg','week');setPeriod('kpi','week');setPeriod('act','month');setPeriod('cat','month');
+  // vs LY
+  // LY: check lyMonthly first, then lyRecords, then records from last year
+  const lyMK=mK(new Date(cM.getFullYear()-1,cM.getMonth(),1));
+  const lyMo=D.lyMonthly&&D.lyMonthly[lyMK];
+  const lyRs=gLY(new Date(cM.getFullYear()-1,cM.getMonth(),1));
+  const lyEl=document.getElementById('vs-ly');
+  if(!lyMo&&!lyRs.length)lyEl.innerHTML='<div class="ts ttl">前年データなし → 入力タブ「一括入力」→「LY月別」で登録</div>';
+  else{
+    const lyK=lyRs.length?kpi(lyRs):{sales:lyMo?.sales||0,traffic:lyMo?.traffic||0,trans:lyMo?.trans||0,cvr:CVR(lyMo?.traffic||0,lyMo?.trans||0),atv:ATV(lyMo?.sales||0,lyMo?.trans||0)};
+    const items=[{l:'売上',c:k.sales,p:lyK.sales,f:f$k},{l:'CVR',c:k.cvr,p:lyK.cvr,f:fP},{l:'ATV',c:k.atv,p:lyK.atv,f:f$},{l:'Traffic',c:k.traffic,p:lyK.traffic,f:fN}];
+    lyEl.innerHTML=items.map(i=>{const d=i.p>0?((i.c-i.p)/i.p)*100:0;return`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>${i.l}</span><span style="font-weight:700">${i.f(i.c)}</span><span class="ts ttl">LY ${i.f(i.p)}</span><span class="tg ${d>=0?'tg-up':'tg-dn'}">${d>=0?'+':''}${fP(d)}</span></div>`}).join('')}
+  // Activity rendered by setPeriod
+}
+
+// Period tab switching
+function setPeriod(section,period){
+  document.querySelectorAll(`.ptab[data-pg="${section}"]`).forEach(b=>{b.className=`bsm ${b.textContent==={year:'年',month:'月',week:'週'}[period]?'bp':'bs2'} ptab`;b.style.fontSize='9px';b.style.padding='3px 8px';b.dataset.pg=section});
+  if(section==='bdg')rBudgetPeriod(period);
+  if(section==='kpi')setKpiPeriod(period);
+  if(section==='act')rActPeriod(period);
+  if(section==='cat')rCatDetail(period);
+}
+
+function rBudgetPeriod(period){
+  const el=document.getElementById('budget-trk');
+  const mk=window._mk||mK(cM);
+  if(period==='year'){
+    // Year to date
+    const year=cM.getFullYear();let ytdSales=0,ytdBdg=0,ytdTrans=0,ytdBdgTrans=0;
+    D.records.filter(r=>r.date.substring(0,4)===''+year).forEach(r=>{ytdSales+=r.sales||0;ytdTrans+=r.trans||0});
+    // Add TY monthly data
+    if(D.tyMonthly)Object.entries(D.tyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===''+year)ytdSales+=v.sales||0;ytdTrans+=v.trans||0});
+    if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,4)===''+year&&d<=td())ytdBdg+=v});
+    if(D.budgetTrans)Object.entries(D.budgetTrans).forEach(([d,v])=>{if(d.substring(0,4)===''+year&&d<=td())ytdBdgTrans+=v});
+    const diff=ytdSales-ytdBdg,tDiff=ytdTrans-ytdBdgTrans;
+    el.innerHTML=`<div style="display:flex;gap:16px"><div><div class="ts ttl">${year}年 売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>${ytdBdgTrans?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${tDiff>=0?'var(--ok)':'var(--ng)'}">${tDiff>=0?'+':''}${fN(tDiff)}</div><div class="ts ttl">${fN(ytdTrans)} / ${fN(ytdBdgTrans)}</div></div>`:''}</div>`;
+  }else if(period==='week'){
+    const wr=weekRecs();let wBdg=0,wBdgT=0;wr.forEach(r=>{wBdg+=D.budgets&&D.budgets[r.date]||0;wBdgT+=D.budgetTrans&&D.budgetTrans[r.date]||0});
+    const wS=sm(wr,'sales'),wT=sm(wr,'trans'),diff=wS-wBdg,tDiff=wT-wBdgT;
+    const{e}=weekRange();const dLeft=Math.max(0,Math.ceil((new Date(e)-new Date())/(86400000)));
+    let html=`<div style="display:flex;gap:16px"><div><div class="ts ttl">今週 売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(wS)} / 予算${f$k(wBdg)}</div></div>${wBdgT?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${tDiff>=0?'var(--ok)':'var(--ng)'}">${tDiff>=0?'+':''}${fN(tDiff)}</div><div class="ts ttl">${fN(wT)} / ${fN(wBdgT)}</div></div>`:''}</div>`;
+    if(diff<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.abs(diff)/dLeft)}/日で挽回</div>`;
+    el.innerHTML=html;
+  }else{
+    // Month - existing logic
+    rBudgetTrk(gR(cM),mk,window._monthKPI||kpi(gR(cM)));
+  }
+}
+
+function setKpiPeriod(period){
+  const k=period==='month'?window._monthKPI:window._weekKPI;
+  if(!k)return;
+  const t=D.targets,fn=D.funnel;
+  const label=period==='month'?'月間':'今週';
+  // Update tab styles
+  document.querySelectorAll('#kpi-tabs button').forEach(b=>{b.className=b.textContent===(period==='month'?'月':'週')?'bsm bp':'bsm bs2';b.style.fontSize='9px';b.style.padding='3px 8px'});
+  function kpiBox(label,val,tgt,fmt){
+    const tgtStr=tgt?` <span class="ts ttl">(${fmt(tgt)})</span>`:'';
+    const color=tgt?(val>=tgt?'var(--ok)':val>=tgt*0.9?'var(--warn)':'var(--ng)'):'var(--t)';
+    return`<div class="kb"><div class="kl">${label}${tgtStr}</div><div class="kv" style="color:${color}">${fmt(val)}</div></div>`}
+  document.getElementById('kpi-display').innerHTML=
+    `<div class="kg" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:5px">`
+    +kpiBox('売上',k.sales,0,f$k)
+    +kpiBox('CVR',k.cvr,t.cvr,fP)
+    +kpiBox('ATV',k.atv,t.atv,f$)
+    +kpiBox('UPT',k.upt,t.upt,fD)
+    +`</div><div class="kg" style="grid-template-columns:1fr 1fr 1fr 1fr">`
+    +kpiBox('Traffic',k.traffic,0,fN)
+    +kpiBox('Trans',k.trans,0,fN)
+    +kpiBox('AP率',k.apR,fn.ap,fP)
+    +kpiBox('3デモ率',k.d3R,0,fP)
+    +`</div>`;
+}
+
+function rActPeriod(period){
+  const k=period==='week'?window._weekKPI:window._monthKPI;
+  if(!k)return;
+  rActRates(k);
+}
+
+function rActRates(k){
+  const fn=D.funnel,t=D.targets;
+  const items=[
+    {l:'AP率',v:k.apR,tgt:fn.ap,cnt:k.ap,fmt:fP},
+    {l:'SC率',v:k.scR,tgt:fn.sc,cnt:k.sc,fmt:fP},
+    {l:'3デモ率',v:k.d3R,tgt:fn.d3,cnt:k.d3,fmt:fP},
+    {l:'FC紹介率',v:k.fcR,tgt:fn.fc,cnt:k.fc,fmt:fP},
+    {l:'CVR',v:k.cvr,tgt:t.cvr,cnt:k.trans,fmt:fP},
+    {l:'ATV',v:k.atv,tgt:t.atv,cnt:0,fmt:f$},
+    {l:'UPT',v:k.upt,tgt:t.upt,cnt:0,fmt:fD},
+  ];
+  document.getElementById('act-rates').innerHTML=items.map(i=>{
+    const diff=i.tgt?i.v-i.tgt:0;
+    const color=!i.tgt?'var(--t)':diff>=0?'var(--ok)':diff>=-i.tgt*0.1?'var(--warn)':'var(--ng)';
+    const bar=i.tgt?Math.min(i.v/i.tgt*100,120):(i.v>0?Math.min(i.v,100):0);
+    const barColor=i.tgt?color:(i.v>0?'var(--p)':'#eee');
+    return`<div style="display:flex;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;gap:6px">
+      <div style="width:50px;font-size:10px;font-weight:600;color:var(--tl)">${i.l}</div>
+      <div style="flex:1"><div style="height:6px;background:#eee;border-radius:3px;overflow:hidden"><div style="height:100%;width:${bar}%;background:${barColor};border-radius:3px"></div></div></div>
+      <div style="min-width:55px;text-align:right;font-weight:700;font-size:13px;color:${color}">${i.fmt(i.v)}</div>
+      <div style="min-width:45px;text-align:right;font-size:9px;color:var(--tl)">${i.tgt?i.fmt(i.tgt)+(i.cnt?' ('+fN(i.cnt)+')':''):i.cnt?fN(i.cnt)+' 件':''}</div>
+    </div>`}).join('');
+}
+
+function rCatDetail(period){
+  const el=document.getElementById('cat-detail');
+  const rs=period==='week'?weekRecs():gR(cM);
+  const k=kpi(rs);
+  // Category totals
+  const ct={};rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})});
+  const totalSales=k.sales;
+  // Monthly targets for SOB
+  const catTgts=D.catTargets||{};
+  const monthBdg=getBudgetMonth(window._mk||mK(cM));
+  // LY data
+  const lyMK=mK(new Date(cM.getFullYear()-1,cM.getMonth(),1));
+  const lyMo=D.lyMonthly&&D.lyMonthly[lyMK];
+  // Week ratio (for week view: divide monthly target by ~4.3)
+  const weekRatio=period==='week'?7/dim(cM):1;
+
+  if(!D.categories.length||!totalSales){el.innerHTML='<div class="ts ttl">データなし</div>';return}
+
+  el.innerHTML='<table class="dt"><thead><tr><th>カテゴリ</th><th class="n">実績</th><th class="n">SOB</th><th class="n">予算</th><th class="n">差</th><th class="n">LY比</th></tr></thead><tbody>'
+    +D.categories.map(c=>{
+      const actual=ct[c]||0;
+      const sob=totalSales>0?((actual/totalSales)*100):0;
+      const catBdg=catTgts[c]?Math.round(catTgts[c]*weekRatio):0;
+      const diff=catBdg?actual-catBdg:0;
+      const lyVal=lyMo&&lyMo['cat-'+c]?Math.round(lyMo['cat-'+c]*weekRatio):0;
+      const lyDiff=lyVal>0?((actual-lyVal)/lyVal)*100:0;
+      return`<tr><td style="font-size:10px">${c}</td><td class="n">${f$k(actual)}</td><td class="n">${fP(sob)}</td><td class="n">${catBdg?f$k(catBdg):'-'}</td><td class="n ${diff>=0?'pos':'neg'}">${catBdg?(diff>=0?'+':'')+Math.round(diff):'-'}</td><td class="n ${lyDiff>=0?'pos':'neg'}">${lyVal?(lyDiff>=0?'+':'')+fP(lyDiff):'-'}</td></tr>`
+    }).join('')+'</tbody></table>';
+}
+
+function rActionFx(pm,rs){
+  const el=document.getElementById('action-fx');
+  if(!pm||!pm.actionItems||!pm.actionItems.length){
+    el.innerHTML=`<div class="promo-bar" style="margin-bottom:6px"><div class="promo-name">${pm?pm.name:'プロモ未設定'}</div>${pm?`<div class="promo-date">${pm.start}〜${pm.end}</div>`:'<div class="ts ttl">プロモタブから登録してください</div>'}</div>`;
+    if(pm&&!pm.actionItems?.length)el.innerHTML+='<div class="ts ttl">プロモにアクション→KPIを設定してください</div>';
+    return}
+  if(!rs.length){el.innerHTML='<div class="ts ttl">データ入力後に表示</div>';return}
+
+  const thisW=kpi(weekRecs()),prevW=kpi(prevWeekRecs());
+  el.innerHTML=`<div class="promo-bar" style="margin-bottom:8px"><div class="promo-name">${pm.name}</div><div class="promo-date">${pm.start}〜${pm.end}</div></div>`
+    +pm.actionItems.map(item=>{
+      const cur=kpiVal(thisW,item.kpi),prev=kpiVal(prevW,item.kpi),fmt=kpiFmt(item.kpi);
+      const diff=cur-prev,up=diff>0;
+      const tgt=kpiTgt(item.kpi);
+      return`<div class="ae" style="background:${up?'#e8f5e9':'#fff3e0'};border-left:3px solid ${up?'var(--ok)':'var(--warn)'}">
+        <div class="ae-act">${item.action}</div>
+        <div class="ae-kpi">
+          <span class="ts ttl">${item.kpi}${tgt?' (目標'+fmt(tgt)+')':''}</span>
+          <span class="ae-trend" style="color:${up?'var(--ok)':'var(--warn)'}">${fmt(cur)} ${up?'↑':'↓'}</span>
+          <span class="ts ttl">前週${fmt(prev)}</span>
+        </div>
+      </div>`}).join('');
+}
+
+function rBudgetTrk(rs,mk,k){
+  const el=document.getElementById('budget-trk');
+  let bdgToDate=0,bdgMonth=0,remDays=0,trnToDate=0,trnMonth=0;const today=td();
+  if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,7)===mk){bdgMonth+=v;if(d<=today)bdgToDate+=v;if(d>today)remDays++}});
+  if(D.budgetTrans)Object.entries(D.budgetTrans).forEach(([d,v])=>{if(d.substring(0,7)===mk){trnMonth+=v;if(d<=today)trnToDate+=v}});
+  if(!bdgToDate){el.innerHTML='<div class="ts ttl">設定タブで日別予算を登録</div>';return}
+  const diff=k.sales-bdgToDate;const trnDiff=k.trans-trnToDate;
+  const pct=Math.min((k.sales/bdgMonth)*100,100);
+  let html=`<div class="pb"><div class="pf" style="width:${pct}%;background:${pct>=85?'var(--ok)':pct>=70?'var(--warn)':'var(--ng)'}"></div></div>
+    <div class="pl"><span>${f$k(k.sales)}</span><span>月予算 ${f$k(bdgMonth)}</span></div>
+    <div style="display:flex;gap:16px;margin-top:8px">
+      <div><div class="ts ttl">売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div></div>
+      ${trnToDate?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${trnDiff>=0?'var(--ok)':'var(--ng)'}">${trnDiff>=0?'+':''}${fN(trnDiff)}人</div></div>`:''}
+    </div>
+    <div class="ts ttl mt8">${f$k(k.sales)}/${f$k(bdgToDate)}${trnToDate?` ・ 客数${fN(k.trans)}/${fN(trnToDate)}`:''}</div>`;
+  if(diff<0&&remDays>0)html+=`<div class="ts" style="color:var(--ng);margin-top:4px">残${remDays}日 売上+${f$k(Math.abs(diff)/remDays)}/日${trnDiff<0?' 客数+'+Math.ceil(Math.abs(trnDiff)/remDays)+'/日':''} 必要</div>`;
+  const wr=weekRecs();let wBdg=0;wr.forEach(r=>{wBdg+=D.budgets&&D.budgets[r.date]||0});
+  const wDiff=sm(wr,'sales')-wBdg;
+  const{e}=weekRange();const dLeft=Math.max(0,Math.ceil((new Date(e)-new Date())/(86400000)));
+  if(wBdg>0&&wDiff<0&&dLeft>0)html+=`<div class="ts" style="color:var(--warn);margin-top:4px">今週あと${dLeft}日 +${f$k(Math.abs(wDiff)/dLeft)}/日で挽回</div>`;
+  el.innerHTML=html;
+}
+
+function rImprove(k){
+  const el=document.getElementById('improve'),sg=[],t=D.targets,fn=D.funnel;
+  if(!k.traffic){el.innerHTML='<div class="ts ttl">データ入力後に表示</div>';return}
+  if(t.cvr&&k.cvr<t.cvr){
+    if(k.apR<(fn.ap||100))sg.push({t:'CVR改善 → AP率UP',b:`AP率${fP(k.apR)}。まずアプローチの量を増やす。`,c:'#fff3e0'});
+    else if(k.d3R<30)sg.push({t:'CVR改善 → 3ステップ体験UP',b:`3デモ率${fP(k.d3R)}。体験の深さ=購買率。`,c:'#fff3e0'});
+    else sg.push({t:'CVR改善 → クロージング強化',b:`デモはできている。提案の仕方を見直す。`,c:'#fff3e0'})}
+  if(t.atv&&k.atv<t.atv)sg.push({t:`ATV UP → セット提案`,b:`現在${f$(k.atv)} 目標${f$(t.atv)}。BS→クリーム等。`,c:'#fce4ec'});
+  if(t.upt&&k.upt>0&&k.upt<t.upt)sg.push({t:`UPT UP → もう1品`,b:`現在${fD(k.upt)} 目標${fD(t.upt)}。`,c:'#fce4ec'});
+  if(fn.ap&&k.apR<fn.ap)sg.push({t:'AP率UP → 声掛け強化',b:`${fP(k.apR)} 目標${fP(fn.ap)}`,c:'#e3f2fd'});
+  if(!sg.length)sg.push({t:'目標ペース内',b:'現在のアクションを継続。',c:'#e8f5e9'});
+  el.innerHTML=sg.map(s=>`<div class="sug" style="background:${s.c}"><div class="sug-t">${s.t}</div><div class="sug-b">${s.b}</div></div>`).join('');
+}
+
+// ===== INPUT =====
+function siTab(btn,m){document.querySelectorAll('#pg-input .tab').forEach(t=>t.classList.remove('on'));btn.classList.add('on');document.getElementById('input-single').style.display=m==='single'?'block':'none';document.getElementById('input-bulk').style.display=m==='bulk'?'block':'none';if(m==='bulk')rBulk()}
+function iInit(){
+  document.getElementById('i-date').value=td();
+  ['i-sales','i-traf','i-trans','i-upt','i-ap','i-sc','i-d12','i-d3','i-fc','i-bs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+  const n=document.getElementById('i-note');if(n)n.value='';
+  document.getElementById('i-calc').textContent='';
+  document.getElementById('i-staff').innerHTML='<option value="">--</option>'+D.staff.map(s=>`<option>${s}</option>`).join('');
+  rCatIn();showBdg();
+  ['i-sales','i-traf','i-trans'].forEach(id=>document.getElementById(id).addEventListener('input',uCalc));
+  document.getElementById('i-date').addEventListener('change',showBdg);
+}
+function showBdg(){const d=document.getElementById('i-date').value,b=D.budgets&&D.budgets[d]||0;document.getElementById('i-bdg-info').textContent=b?`今日の予算: ${f$k(b)}`:''}
+function uCalc(){const s=parseInt(document.getElementById('i-sales').value)||0,tr=parseInt(document.getElementById('i-traf').value)||0,tn=parseInt(document.getElementById('i-trans').value)||0;const p=[];if(tr&&tn)p.push('CVR:'+fP(CVR(tr,tn)));if(s&&tn)p.push('ATV:'+f$(ATV(s,tn)));document.getElementById('i-calc').textContent=p.length?'→ '+p.join(' '):''}
+function rCatIn(){document.getElementById('cat-in').innerHTML=D.categories.map(c=>`<div class="fr" style="margin-bottom:4px"><div class="fg" style="flex:1;margin-bottom:0"><span class="fl" style="font-size:11px">${c}</span></div><div class="fg" style="flex:1;margin-bottom:0"><input type="number" class="fi" data-cat="${c}" placeholder="0" inputmode="numeric" style="padding:8px;font-size:14px"></div></div>`).join('')}
+function saveRec(){
+  const date=document.getElementById('i-date').value,sales=parseInt(document.getElementById('i-sales').value)||0;
+  if(!date||!sales){alert('日付と売上を入力');return}
+  const rec={date,sales,traffic:parseInt(document.getElementById('i-traf').value)||0,trans:parseInt(document.getElementById('i-trans').value)||0,upt:parseFloat(document.getElementById('i-upt').value)||0,ap:parseInt(document.getElementById('i-ap').value)||0,sc:parseInt(document.getElementById('i-sc').value)||0,demo12:parseInt(document.getElementById('i-d12').value)||0,demo3:parseInt(document.getElementById('i-d3').value)||0,fc:parseInt(document.getElementById('i-fc').value)||0,bs:parseInt(document.getElementById('i-bs').value)||0,staff:document.getElementById('i-staff').value,note:document.getElementById('i-note')?.value||'',categories:{},products:{}};
+  document.querySelectorAll('[data-cat]').forEach(e=>{const v=parseInt(e.value)||0;if(v)rec.categories[e.dataset.cat]=v});
+  const ei=D.records.findIndex(r=>r.date===date&&(r.staff||'')===(rec.staff||''));
+  if(ei>=0){if(!confirm('上書き？'))return;D.records[ei]=rec}else D.records.push(rec);
+  D.records.sort((a,b)=>a.date.localeCompare(b.date));sv(D);alert('登録！');iInit()}
+
+// Bulk tabs
+function bkTab(btn,m){document.querySelectorAll('#input-bulk .tab').forEach(t=>t.classList.remove('on'));btn.classList.add('on');['bk-ty','bk-tymo','bk-lymo','bk-lyd'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('bk-'+m).style.display='block';if(m==='ty')rBulkTY();if(m==='tymo')rTYMo();if(m==='lymo')rLYMo();if(m==='lyd')rLYD()}
+
+function rBulkTY(){
+  const start=document.getElementById('bk-start').value||td();
+  if(!document.getElementById('bk-start').value)document.getElementById('bk-start').value=start;
+  const days=parseInt(document.getElementById('bk-days').value)||31;
+  const startD=new Date(start);
+  const cols=[{l:'売上',f:'sales'},{l:'Trf',f:'traffic'},{l:'Trn',f:'trans'},{l:'UPT',f:'upt'},{l:'AP',f:'ap'},{l:'SC',f:'sc'},{l:'1-2D',f:'demo12'},{l:'3D',f:'demo3'},{l:'FC',f:'fc'},{l:'BS',f:'bs'}];
+  D.categories.forEach(c=>cols.push({l:c.substring(0,3),f:'cat-'+c}));
+  let html='<table class="dt"><thead><tr><th style="position:sticky;left:0;background:#fff;z-index:1">日</th>'+cols.map(c=>`<th class="n" style="font-size:7px">${c.l}</th>`).join('')+'</tr></thead><tbody>';
+  for(let i=0;i<days;i++){
+    const d=new Date(startD);d.setDate(startD.getDate()+i);
+    const ds=fmtDate(d);const dow=DOW[d.getDay()],isWe=d.getDay()===0||d.getDay()===6;
+    const src=D.records.find(r=>r.date===ds);
+    html+=`<tr style="${isWe?'background:#fef7f7':''}"><td style="font-size:9px;white-space:nowrap;position:sticky;left:0;background:${isWe?'#fef7f7':'#fff'};z-index:1">${d.getDate()}${dow}</td>`;
+    cols.forEach(c=>{let val='';if(src){if(c.f.startsWith('cat-'))val=src.categories&&src.categories[c.f.substring(4)]||'';else val=src[c.f]||''}
+      html+=`<td class="n"><input type="number" data-bk="${ds}" data-col="${c.f}" value="${val}" inputmode="${c.f==='upt'?'decimal':'numeric'}" class="bk-i"></td>`});
+    html+='</tr>'}
+  html+='</tbody></table>';document.getElementById('bk-ty-grid').innerHTML=html}
+function saveBulkTY(){
+  const dates=new Set();document.querySelectorAll('[data-bk]').forEach(e=>dates.add(e.dataset.bk));let c=0;
+  dates.forEach(ds=>{const g=col=>{const e=document.querySelector(`[data-bk="${ds}"][data-col="${col}"]`);return e?parseFloat(e.value)||0:0};
+    const sales=g('sales');if(!sales)return;const categories={};D.categories.forEach(ct=>{const v=g('cat-'+ct);if(v)categories[ct]=v});
+    const rec={date:ds,sales,traffic:g('traffic'),trans:g('trans'),upt:g('upt'),ap:g('ap'),sc:g('sc'),demo12:g('demo12'),demo3:g('demo3'),fc:g('fc'),bs:g('bs'),staff:'',note:'',categories,products:{}};
+    const ei=D.records.findIndex(r=>r.date===ds&&!r.staff);if(ei>=0)D.records[ei]=rec;else D.records.push(rec);c++});
+  D.records.sort((a,b)=>a.date.localeCompare(b.date));sv(D);alert(c+'日分登録！');rBulkTY()}
+
+// TY Monthly
+function rTYMo(){
+  const sel=document.getElementById('tymo-year');
+  if(!sel.innerHTML){const cy=new Date().getFullYear();sel.innerHTML=`<option value="${cy}">${cy}年</option><option value="${cy-1}">${cy-1}年</option>`}
+  const year=parseInt(sel.value);
+  const cols=[{l:'売上',f:'sales'},{l:'客数',f:'trans'},{l:'Traf',f:'traffic'},{l:'UPT',f:'upt'},{l:'AP',f:'ap'},{l:'SC',f:'sc'},{l:'1-2D',f:'demo12'},{l:'3D',f:'demo3'},{l:'FC',f:'fc'},{l:'BS',f:'bs'}];
+  D.categories.forEach(c=>cols.push({l:c.substring(0,3),f:'cat-'+c}));
+  let html='<table class="dt"><thead><tr><th>月</th>'+cols.map(c=>`<th class="n" style="font-size:7px">${c.l}</th>`).join('')+'</tr></thead><tbody>';
+  for(let m=1;m<=12;m++){
+    const mk=year+'-'+String(m).padStart(2,'0');
+    const existing=D.tyMonthly&&D.tyMonthly[mk];
+    html+=`<tr><td style="font-size:11px;font-weight:600">${m}月</td>`;
+    cols.forEach(c=>{let val=existing&&existing[c.f]||'';
+      html+=`<td class="n"><input type="number" data-tymo="${mk}" data-tmcol="${c.f}" value="${val}" inputmode="${c.f==='upt'?'decimal':'numeric'}" class="bk-i"></td>`});
+    html+='</tr>'}
+  html+='</tbody></table>';document.getElementById('tymo-grid').innerHTML=html}
+function saveTYMo(){
+  if(!D.tyMonthly)D.tyMonthly={};let c=0;
+  const months=new Set();document.querySelectorAll('[data-tymo]').forEach(e=>months.add(e.dataset.tymo));
+  months.forEach(mk=>{const g=col=>{const e=document.querySelector(`[data-tymo="${mk}"][data-tmcol="${col}"]`);return e?parseFloat(e.value)||0:0};
+    const sales=g('sales');if(!sales)return;
+    const obj={sales,trans:g('trans'),traffic:g('traffic'),upt:g('upt'),ap:g('ap'),sc:g('sc'),demo12:g('demo12'),demo3:g('demo3'),fc:g('fc'),bs:g('bs')};
+    D.categories.forEach(ct=>{const v=g('cat-'+ct);if(v)obj['cat-'+ct]=v});
+    D.tyMonthly[mk]=obj;c++});
+  sv(D);alert(c+'ヶ月分登録！')}
+
+// LY Monthly
+function rLYMo(){
+  const sel=document.getElementById('lymo-year');
+  if(!sel.innerHTML){const cy=new Date().getFullYear();for(let y=cy-1;y>=cy-3;y--)sel.innerHTML+=`<option value="${y}">${y}年</option>`}
+  const year=parseInt(sel.value);
+  const cols=[{l:'売上',f:'sales'},{l:'客数',f:'trans'},{l:'Traf',f:'traffic'},{l:'UPT',f:'upt'},{l:'AP',f:'ap'},{l:'SC',f:'sc'},{l:'1-2D',f:'demo12'},{l:'3D',f:'demo3'},{l:'FC',f:'fc'},{l:'BS',f:'bs'}];
+  D.categories.forEach(c=>cols.push({l:c.substring(0,3),f:'cat-'+c}));
+  let html='<table class="dt"><thead><tr><th>月</th>'+cols.map(c=>`<th class="n" style="font-size:7px">${c.l}</th>`).join('')+'</tr></thead><tbody>';
+  for(let m=1;m<=12;m++){
+    const mk=year+'-'+String(m).padStart(2,'0');
+    const existing=D.lyMonthly&&D.lyMonthly[mk];
+    html+=`<tr><td style="font-size:11px;font-weight:600">${m}月</td>`;
+    cols.forEach(c=>{let val=existing&&existing[c.f]||'';
+      html+=`<td class="n"><input type="number" data-lymo="${mk}" data-lmcol="${c.f}" value="${val}" inputmode="${c.f==='upt'?'decimal':'numeric'}" class="bk-i"></td>`});
+    html+='</tr>'}
+  html+='</tbody></table>';document.getElementById('lymo-grid').innerHTML=html}
+function saveLYMo(){
+  if(!D.lyMonthly)D.lyMonthly={};let c=0;
+  const months=new Set();document.querySelectorAll('[data-lymo]').forEach(e=>months.add(e.dataset.lymo));
+  months.forEach(mk=>{const g=col=>{const e=document.querySelector(`[data-lymo="${mk}"][data-lmcol="${col}"]`);return e?parseFloat(e.value)||0:0};
+    const sales=g('sales');if(!sales)return;
+    const obj={sales,trans:g('trans'),traffic:g('traffic'),upt:g('upt'),ap:g('ap'),sc:g('sc'),demo12:g('demo12'),demo3:g('demo3'),fc:g('fc'),bs:g('bs')};
+    D.categories.forEach(ct=>{const v=g('cat-'+ct);if(v)obj['cat-'+ct]=v});
+    D.lyMonthly[mk]=obj;c++});
+  sv(D);alert(c+'ヶ月分登録！')}
+
+// LY Daily (simple)
+function rLYD(){
+  const start=document.getElementById('lyd-start').value;
+  if(!start){const ly=new Date();ly.setFullYear(ly.getFullYear()-1);ly.setDate(1);document.getElementById('lyd-start').value=fmtDate(ly)}
+  const startD=new Date(document.getElementById('lyd-start').value);
+  const days=parseInt(document.getElementById('lyd-days').value)||31;
+  let html='<table class="dt"><thead><tr><th>日</th><th class="n" style="font-size:8px">売上</th><th class="n" style="font-size:8px">客数</th><th class="n" style="font-size:8px">Traf</th><th class="n" style="font-size:8px">UPT</th></tr></thead><tbody>';
+  for(let i=0;i<days;i++){
+    const d=new Date(startD);d.setDate(startD.getDate()+i);
+    const ds=fmtDate(d);const dow=DOW[d.getDay()],isWe=d.getDay()===0||d.getDay()===6;
+    const src=(D.lyRecords||[]).find(r=>r.date===ds);
+    html+=`<tr style="${isWe?'background:#fef7f7':''}"><td style="font-size:9px">${d.getDate()}${dow}</td>
+      <td class="n"><input type="number" data-lyd="${ds}" data-ldcol="sales" value="${src?.sales||''}" inputmode="numeric" class="bk-i"></td>
+      <td class="n"><input type="number" data-lyd="${ds}" data-ldcol="trans" value="${src?.trans||''}" inputmode="numeric" class="bk-i"></td>
+      <td class="n"><input type="number" data-lyd="${ds}" data-ldcol="traffic" value="${src?.traffic||''}" inputmode="numeric" class="bk-i"></td>
+      <td class="n"><input type="number" data-lyd="${ds}" data-ldcol="upt" value="${src?.upt||''}" inputmode="decimal" class="bk-i"></td></tr>`}
+  html+='</tbody></table>';document.getElementById('lyd-grid').innerHTML=html}
+function saveLYD(){
+  if(!D.lyRecords)D.lyRecords=[];const dates=new Set();
+  document.querySelectorAll('[data-lyd]').forEach(e=>dates.add(e.dataset.lyd));let c=0;
+  dates.forEach(ds=>{const g=col=>{const e=document.querySelector(`[data-lyd="${ds}"][data-ldcol="${col}"]`);return e?parseFloat(e.value)||0:0};
+    const sales=g('sales');if(!sales)return;
+    const rec={date:ds,sales,trans:g('trans'),traffic:g('traffic'),upt:g('upt'),ap:0,sc:0,demo12:0,demo3:0,fc:0,bs:0,staff:'',note:'',categories:{},products:{}};
+    const ei=D.lyRecords.findIndex(r=>r.date===ds);if(ei>=0)D.lyRecords[ei]=rec;else D.lyRecords.push(rec);c++});
+  D.lyRecords.sort((a,b)=>a.date.localeCompare(b.date));sv(D);alert(c+'日分(LY)登録！')}
+
+// ===== PROMO =====
+let pmActN=0;
+function addPmAct(){const list=document.getElementById('pm-acts'),id=pmActN++;const div=document.createElement('div');div.className='fr mb8';div.id='pa-'+id;
+  div.innerHTML=`<div class="fg" style="flex:3;margin:0"><input type="text" class="fi" data-pa-a="${id}" placeholder="アクション内容" style="font-size:13px"></div><div class="fg" style="flex:2;margin:0"><select class="fi" data-pa-k="${id}" style="font-size:13px">${KPI_NAMES.map(k=>`<option>${k}</option>`).join('')}</select></div><button class="del" onclick="document.getElementById('pa-${id}').remove()">×</button>`;
+  list.appendChild(div)}
+function rPm(){pmActN=0;document.getElementById('pm-name').value='';document.getElementById('pm-start').value='';document.getElementById('pm-end').value='';document.getElementById('pm-products').value='';
+  document.getElementById('pm-acts').innerHTML='';addPmAct();addPmAct();addPmAct();addPmAct();
+  // Category inputs
+  document.getElementById('pm-cats').innerHTML=D.categories.map(c=>`<div class="fg"><label class="fl" style="font-size:11px">${c}</label><input type="text" class="fi" data-pmcat="${c}" placeholder="方針（例：セット提案強化）" style="font-size:12px"></div>`).join('');
+  const el=document.getElementById('pm-list'),today=td();
+  if(!D.promos.length){el.innerHTML='<div class="ts ttl">プロモなし</div>';return}
+  el.innerHTML=D.promos.sort((a,b)=>b.start.localeCompare(a.start)).map((p,i)=>{const isA=p.start<=today&&p.end>=today;
+    return`<div class="c" style="${isA?'border-left:4px solid var(--p)':''}"><div style="display:flex;justify-content:space-between"><div><div style="font-weight:700;font-size:13px">${p.name}${isA?' <span class="tg tg-up">実施中</span>':''}</div><div class="ts ttl">${p.start}〜${p.end}</div></div><button class="del" onclick="delPm(${i})">×</button></div>${(p.actionItems||[]).map(a=>`<div class="ts mt8">${a.action} → <strong>${a.kpi}</strong></div>`).join('')}${p.catActions?Object.entries(p.catActions).map(([c,v])=>`<div class="ts" style="color:var(--info)">【${c}】${v}</div>`).join(''):''}${p.focusProducts&&p.focusProducts.length?`<div class="ts mt8" style="color:var(--pd)">強化品: ${p.focusProducts.join('、')}</div>`:''}</div>`}).join('')}
+function savePm(){const name=document.getElementById('pm-name').value.trim(),start=document.getElementById('pm-start').value,end=document.getElementById('pm-end').value;
+  if(!name||!start||!end){alert('プロモ名と期間を入力');return}
+  const actionItems=[];document.querySelectorAll('[data-pa-a]').forEach(e=>{const id=e.dataset.paA,k=document.querySelector(`[data-pa-k="${id}"]`),a=e.value.trim();if(a&&k)actionItems.push({action:a,kpi:k.value})});
+  const catActions={};document.querySelectorAll('[data-pmcat]').forEach(e=>{const v=e.value.trim();if(v)catActions[e.dataset.pmcat]=v});
+  const focusProducts=document.getElementById('pm-products').value.split(/[,、]/).map(s=>s.trim()).filter(s=>s);
+  D.promos.push({name,start,end,actionItems,catActions,focusProducts});sv(D);alert('登録！');rPm()}
+function delPm(i){if(confirm('削除？')){D.promos.splice(i,1);sv(D);rPm()}}
+
+// ===== REPORT =====
+function openRpt(){document.getElementById('rpt-modal').style.display='block';const sel=document.getElementById('rpt-period');sel.innerHTML='';
+  const{s}=weekRange();const sd=new Date(s);for(let i=0;i<8;i++){const w=new Date(sd);w.setDate(sd.getDate()-7*i);const we=new Date(w);we.setDate(w.getDate()+6);const ws=[w.getFullYear(),String(w.getMonth()+1).padStart(2,'0'),String(w.getDate()).padStart(2,'0')].join('-');sel.innerHTML+=`<option value="${ws}">${(w.getMonth()+1)+'/'+w.getDate()}〜${(we.getMonth()+1)+'/'+we.getDate()}</option>`}genRpt()}
+function closeRpt(){document.getElementById('rpt-modal').style.display='none'}
+function genRpt(){const period=document.getElementById('rpt-period').value,needs=document.getElementById('rpt-needs').value,comment=document.getElementById('rpt-comment').value;
+  if(!period)return;const rs=weekRecs(period);const s=new Date(period),e=new Date(s);e.setDate(s.getDate()+6);const label=(s.getMonth()+1)+'/'+s.getDate()+'('+DOW[s.getDay()]+')〜'+(e.getMonth()+1)+'/'+e.getDate()+'('+DOW[e.getDay()]+')';
+  const k=kpi(rs),t=D.targets,fn=D.funnel;
+  let bdg=0;rs.forEach(r=>{bdg+=D.budgets&&D.budgets[r.date]||0});
+  const pm=curPromo();
+  const ct={};rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})});
+  const catL=Object.entries(ct).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`  ${c}: ${f$k(v)}${D.catTargets[c]?' (目標'+f$k(D.catTargets[c])+' '+rate(v,D.catTargets[c])+')':''}`).join('\n');
+  let rpt=`【週次報告】${label}\n${'═'.repeat(24)}\n\n■ 売上\n  実績: ${f$k(k.sales)}`;
+  if(bdg)rpt+=` / 予算${f$k(bdg)}（${k.sales>=bdg?'+':''}${f$k(k.sales-bdg)}）`;
+  rpt+=`\n\n■ KPI\n  Traffic:${fN(k.traffic)} Trans:${fN(k.trans)}\n  CVR:${fP(k.cvr)}${t.cvr?' (目標'+fP(t.cvr)+') '+rate(k.cvr,t.cvr):''}\n  ATV:${f$(k.atv)}${t.atv?' (目標'+f$(t.atv)+') '+rate(k.atv,t.atv):''}\n  UPT:${k.upt>0?fD(k.upt):'-'}${t.upt?' (目標'+fD(t.upt)+') '+rate(k.upt,t.upt):''}`;
+  rpt+=`\n\n■ 接客指標\n  AP率:${fP(k.apR)}${fn.ap?' '+rate(k.apR,fn.ap):''} SC率:${fP(k.scR)}\n  3デモ率:${fP(k.d3R)}${fn.d3?' '+rate(k.d3R,fn.d3):''} FC紹介率:${fP(k.fcR)}${fn.fc?' '+rate(k.fcR,fn.fc):''}`;
+  if(pm){rpt+=`\n\n■ プロモ: ${pm.name}`;if(pm.actionItems)rpt+='\n'+pm.actionItems.map(a=>`  ${a.action} → ${a.kpi}`).join('\n')}
+  if(needs)rpt+=`\n\n■ ニーズ\n  ${needs}`;
+  if(comment)rpt+=`\n\n■ 振り返り\n  ${comment}`;
+  if(catL)rpt+=`\n\n■ カテゴリ\n${catL}`;
+  document.getElementById('rpt-out').innerHTML=`<button class="copy-btn" onclick="copyRpt()">コピー</button><div class="rpt-box" id="rpt-c">${rpt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`}
+function copyRpt(){const t=document.getElementById('rpt-c').textContent;navigator.clipboard.writeText(t).then(()=>alert('コピー！')).catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('コピー！')})}
+
+// ===== SETTINGS =====
+function rBdg(){const mi=document.getElementById('s-bdg-mo');if(!mi.value)mi.value=mK(new Date());const[y,m]=mi.value.split('-').map(Number);const days=new Date(y,m,0).getDate();
+  let html='<table class="dt"><thead><tr><th>日</th><th>曜</th><th class="n">予算<span class="hint">(千円)</span></th><th class="n">客数</th></tr></thead><tbody>',totalS=0,totalT=0;
+  for(let d=1;d<=days;d++){const ds=[y,String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');const dow=DOW[new Date(y,m-1,d).getDay()];const val=D.budgets&&D.budgets[ds]||'';const tval=D.budgetTrans&&D.budgetTrans[ds]||'';if(val)totalS+=parseInt(val);if(tval)totalT+=parseInt(tval);const isWe=new Date(y,m-1,d).getDay()===0||new Date(y,m-1,d).getDay()===6;
+    html+=`<tr style="${isWe?'background:#f5f9f5':''}"><td>${d}</td><td>${dow}</td><td class="n"><input type="number" data-bdg="${ds}" value="${val}" inputmode="numeric" style="width:60px;padding:4px;font-size:13px;border:1px solid var(--bd);border-radius:6px;text-align:right"></td><td class="n"><input type="number" data-bdgt="${ds}" value="${tval}" inputmode="numeric" style="width:50px;padding:4px;font-size:13px;border:1px solid var(--bd);border-radius:6px;text-align:right"></td></tr>`}
+  html+='</tbody></table>';document.getElementById('bdg-grid').innerHTML=html;
+  // Show calculated targets
+  const avgAtv=D.targets.atv||4500;const avgUpt=D.targets.upt||2.5;
+  const estTraffic=D.targets.cvr>0?Math.round(totalT/(D.targets.cvr/100)):0;
+  document.getElementById('bdg-total').innerHTML=`売上: ${f$k(totalS)} / 客数: ${fN(totalT)}${estTraffic?` / 推定Traffic: ${fN(estTraffic)}(CVR${fP(D.targets.cvr)}換算)`:''}`}
+function saveBdg(){if(!D.budgets)D.budgets={};if(!D.budgetTrans)D.budgetTrans={};
+  document.querySelectorAll('[data-bdg]').forEach(e=>{const v=parseInt(e.value)||0;if(v)D.budgets[e.dataset.bdg]=v;else delete D.budgets[e.dataset.bdg]});
+  document.querySelectorAll('[data-bdgt]').forEach(e=>{const v=parseInt(e.value)||0;if(v)D.budgetTrans[e.dataset.bdgt]=v;else delete D.budgetTrans[e.dataset.bdgt]});
+  sv(D);alert('保存！')}
+function rSet(){const t=D.targets,f=D.funnel||{};document.getElementById('s-bdg-mo').value=mK(new Date());rBdg();
+  document.getElementById('s-cvr').value=t.cvr||'';document.getElementById('s-atv').value=t.atv||'';document.getElementById('s-upt').value=t.upt||'';
+  document.getElementById('s-fap').value=f.ap||'';document.getElementById('s-fsc').value=f.sc||'';document.getElementById('s-fd3').value=f.d3||'';document.getElementById('s-ffc').value=f.fc||'';
+  rCatSet();rStfCh()}
+function saveTgt(){D.targets={cvr:parseFloat(document.getElementById('s-cvr').value)||0,atv:parseInt(document.getElementById('s-atv').value)||0,upt:parseFloat(document.getElementById('s-upt').value)||0};
+  D.funnel={ap:parseFloat(document.getElementById('s-fap').value)||0,sc:parseFloat(document.getElementById('s-fsc').value)||0,d3:parseFloat(document.getElementById('s-fd3').value)||0,fc:parseFloat(document.getElementById('s-ffc').value)||0};
+  D.catTargets={};document.querySelectorAll('[data-cattgt]').forEach(e=>{const v=parseInt(e.value)||0;if(v)D.catTargets[e.dataset.cattgt]=v});sv(D);alert('保存！')}
+function rCatSet(){document.getElementById('cat-set').innerHTML=D.categories.map(c=>`<div class="fr" style="margin-bottom:4px;align-items:center"><span class="chip">${c}<button class="chip-x" onclick="rmCat('${c}')">×</button></span><input type="number" class="fi" data-cattgt="${c}" placeholder="目標(千円)" value="${D.catTargets&&D.catTargets[c]||''}" inputmode="numeric" style="flex:1;padding:6px;font-size:12px;margin-left:6px"></div>`).join('')}
+function addCat(){const i=document.getElementById('nc'),n=i.value.trim();if(!n||D.categories.includes(n))return;D.categories.push(n);sv(D);i.value='';rCatSet()}
+function rmCat(n){D.categories=D.categories.filter(c=>c!==n);delete D.catTargets[n];sv(D);rCatSet()}
+function rStfCh(){document.getElementById('stf-ch').innerHTML=D.staff.map(s=>`<span class="chip">${s}<button class="chip-x" onclick="rmStf('${s}')">×</button></span>`).join('')}
+function addStf(){const i=document.getElementById('ns'),n=i.value.trim();if(!n||D.staff.includes(n))return;D.staff.push(n);sv(D);i.value='';rStfCh()}
+function rmStf(n){D.staff=D.staff.filter(s=>s!==n);sv(D);rStfCh()}
+function expD(){const b=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='cosme-'+td()+'.json';a.click();URL.revokeObjectURL(u)}
+function impD(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.records){D=d;sv(D);alert('完了');go('home')}else alert('無効')}catch{alert('失敗')}};r.readAsText(f);e.target.value=''}
+function clrD(){if(confirm('全データ削除？')){localStorage.removeItem(SK);D=ld();go('set');alert('削除完了')}}
+document.addEventListener('DOMContentLoaded',()=>rHome());
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
