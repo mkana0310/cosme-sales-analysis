@@ -479,7 +479,7 @@ function rFunnelFlow(k){
   const steps=[
     {l:'AP率',v:k.apR,tgt:fn.ap,fmt:fP},{l:'SC率',v:k.scR,tgt:fn.sc,fmt:fP},
     {l:'3デモ',v:k.d3R,tgt:fn.d3,fmt:fP},{l:'FC',v:k.fcR,tgt:fn.fc,fmt:fP},
-    {l:'CVR',v:k.cvr,tgt:t.cvr,fmt:fP},{l:'ATV',v:k.atv,tgt:t.atv,fmt:n=>n>=10000?Math.round(n/1000)+'k':Math.round(n/100)+'百'},
+    {l:'CVR',v:k.cvr,tgt:t.cvr,fmt:fP},{l:'ATV',v:k.atv,tgt:t.atv,fmt:n=>'¥'+(Math.round(n/100)/10).toFixed(1)+'k'},
     {l:'UPT',v:k.upt,tgt:t.upt,fmt:fD}
   ];
   document.getElementById('funnel-flow').innerHTML='<div class="funnel">'+steps.map((s,i)=>`<div class="fn-step"><div class="fn-lbl">${s.l}</div><div class="fn-val" style="color:${clr(s.v,s.tgt)}">${s.v>0?s.fmt(s.v):'-'}</div><div class="fn-mrk">${mrk(s.v,s.tgt)}</div></div>${i<steps.length-1?'<div class="fn-arrow">›</div>':''}`).join('')+'</div>'
@@ -491,14 +491,14 @@ function rHome(){
   const rs=gR(cM),mk=mK(cM),k=kpi(rs);
   const pm=curPromo();
 
-  // Focus card
-  rFocus(k,pm);
+  // Focus card (week KPI = 直近トレンド)
+  window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._mk=mk;
+  rFocus(window._weekKPI,pm);
   // Action Effect
   rActionFx(pm,rs);
   // Budget
   rBudgetTrk(rs,mk,k);
   // Store KPIs for period switching
-  window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._mk=mk;
   setPeriod('bdg','week');setPeriod('kpi','week');setPeriod('cat','month');
   // vs LY
   // LY: check lyMonthly first, then lyRecords, then records from last year
@@ -613,7 +613,6 @@ function rCatDetail(period){
   const totalSales=k.sales;
   // Monthly targets for SOB
   const catTgts=D.catTargets||{};
-  const monthBdg=getBudgetMonth(window._mk||mK(cM));
   // LY data
   const lyMK=mK(new Date(cM.getFullYear()-1,cM.getMonth(),1));
   const lyMo=D.lyMonthly&&D.lyMonthly[lyMK];
@@ -674,10 +673,6 @@ function rBudgetTrk(rs,mk,k){
     </div>
     <div class="ts ttl mt8">${f$k(k.sales)}/${f$k(bdgToDate)}${trnToDate?` ・ 客数${fN(k.trans)}/${fN(trnToDate)}`:''}</div>`;
   if(diff<0&&remDays>0)html+=`<div class="ts" style="color:var(--ng);margin-top:4px">残${remDays}日 売上+${f$k(Math.abs(diff)/remDays)}/日${trnDiff<0?' 客数+'+Math.ceil(Math.abs(trnDiff)/remDays)+'/日':''} 必要</div>`;
-  const wr=weekRecs();let wBdg=0;wr.forEach(r=>{wBdg+=D.budgets&&D.budgets[r.date]||0});
-  const wDiff=sm(wr,'sales')-wBdg;
-  const{e}=weekRange();const dLeft=Math.max(0,Math.ceil((new Date(e)-new Date())/(86400000)));
-  if(wBdg>0&&wDiff<0&&dLeft>0)html+=`<div class="ts" style="color:var(--warn);margin-top:4px">今週あと${dLeft}日 +${f$k(Math.abs(wDiff)/dLeft)}/日で挽回</div>`;
   el.innerHTML=html;
 }
 
