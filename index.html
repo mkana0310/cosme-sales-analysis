@@ -105,6 +105,24 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
 /* Report */
 .rpt-box{background:#f8f8f8;border:1px solid var(--bd);border-radius:10px;padding:12px;font-size:11px;line-height:1.7;white-space:pre-wrap;font-family:inherit;max-height:50vh;overflow-y:auto}
 .copy-btn{float:right;background:var(--p);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+/* Accordion */
+.acc-hd{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.acc-arr{color:var(--tl);font-size:12px;transition:transform .2s;flex-shrink:0}
+/* Focus card */
+.focus-num{font-size:22px;font-weight:800;line-height:1.1}
+.focus-sub{font-size:11px;color:var(--tl);margin-top:2px}
+.focus-action{background:var(--pl);border-radius:10px;padding:10px 12px;margin-top:8px}
+.focus-action-lbl{font-size:9px;font-weight:700;color:var(--pd);letter-spacing:.5px;margin-bottom:3px;text-transform:uppercase}
+.focus-action-txt{font-size:13px;font-weight:700;color:var(--t);line-height:1.4}
+.focus-2nd{background:#f5f5f5;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:11px}
+/* Funnel flow */
+.funnel{display:flex;align-items:flex-end;overflow-x:auto;padding:4px 0 2px;-ms-overflow-style:none;scrollbar-width:none}
+.funnel::-webkit-scrollbar{display:none}
+.fn-step{flex:1;min-width:40px;text-align:center;padding:0 1px}
+.fn-lbl{font-size:8px;color:var(--tl);white-space:nowrap;margin-bottom:2px}
+.fn-val{font-size:11px;font-weight:800;line-height:1.2}
+.fn-mrk{font-size:11px;margin-top:1px}
+.fn-arrow{color:#ccc;font-size:14px;padding-bottom:10px;flex-shrink:0;align-self:flex-end}
 </style>
 </head>
 <body>
@@ -114,10 +132,10 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
 <div id="pg-home" class="pg on">
   <div class="ms"><button onclick="chMo(-1)">&lt;</button><span class="cur" id="d-mo"></span><button onclick="chMo(1)">&gt;</button></div>
 
-  <!-- 1. Action Effect -->
+  <!-- 1. Today's Focus -->
   <div class="c" style="border-left:4px solid var(--p)">
-    <div class="ct">アクション効果</div>
-    <div id="action-fx"></div>
+    <div class="ct">今日のフォーカス</div>
+    <div id="focus-content"></div>
   </div>
 
   <!-- 2. Budget Progress -->
@@ -129,40 +147,49 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
     <div id="budget-trk"></div>
   </div>
 
-  <!-- 3. Improvement Suggestions -->
+  <!-- 3. Action Effect (collapsible) -->
   <div class="c">
-    <div class="ct">改善ポイント</div>
-    <div id="improve"></div>
+    <button class="acc-hd" onclick="toggleAcc('action-fx-body','action-fx-arr')">
+      <span class="ct" style="margin:0">アクション効果</span>
+      <span id="action-fx-arr" class="acc-arr">▼</span>
+    </button>
+    <div id="action-fx-body" style="margin-top:8px">
+      <div id="action-fx"></div>
+    </div>
   </div>
 
-  <!-- 4. KPIs -->
+  <!-- 4. Funnel Flow + KPI/接客指標 detail -->
   <div class="c">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div class="ct" style="margin:0">KPI</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div class="ct" style="margin:0">接客フロー</div>
       <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="kpi" onclick="setPeriod('kpi','week')" style="font-size:9px;padding:3px 8px">週</button></div>
     </div>
-    <div id="kpi-display"></div>
-  </div>
-
-  <!-- 5. Activity with rates -->
-  <div class="c">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div class="ct" style="margin:0">接客指標</div>
-      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="act" onclick="setPeriod('act','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="act" onclick="setPeriod('act','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+    <div id="funnel-flow"></div>
+    <button class="fold" onclick="toggleAcc('kpi-detail-body','kpi-detail-arr')" style="margin-top:6px"><span id="kpi-detail-arr">▶ 詳細を見る</span></button>
+    <div id="kpi-detail-body" style="display:none;margin-top:8px">
+      <div id="kpi-display"></div>
+      <div class="ct" style="margin-top:12px;margin-bottom:6px">接客指標 詳細</div>
+      <div id="act-rates"></div>
     </div>
-    <div id="act-rates"></div>
   </div>
 
-  <!-- 6. Category with budget/SOB/LY -->
+  <!-- 5. Category (collapsible) -->
   <div class="c">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div class="ct" style="margin:0">カテゴリ別</div>
-      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="cat" onclick="setPeriod('cat','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="cat" onclick="setPeriod('cat','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+    <button class="acc-hd" onclick="toggleAcc('cat-body','cat-arr')">
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+        <span class="ct" style="margin:0">カテゴリ別</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;gap:4px" onclick="event.stopPropagation()"><button class="bsm bs2 ptab" data-pg="cat" onclick="setPeriod('cat','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="cat" onclick="setPeriod('cat','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+          <span id="cat-arr" class="acc-arr">▶</span>
+        </div>
+      </div>
+    </button>
+    <div id="cat-body" style="display:none;margin-top:8px">
+      <div id="cat-detail"></div>
     </div>
-    <div id="cat-detail"></div>
   </div>
 
-  <!-- 7. vs LY -->
+  <!-- 6. vs LY -->
   <div class="c">
     <button class="fold" onclick="toggleEl('ly-detail')">前年比を見る</button>
     <div id="ly-detail" style="display:none"><div id="vs-ly"></div></div>
@@ -398,6 +425,7 @@ function avgUpt(rs){const u=rs.filter(r=>r.upt>0);return u.length?u.reduce((s,r)
 function rate(v,t){if(!t)return'';return v/t>=1?'◎':v/t>=.9?'○':v/t>=.7?'△':'×'}
 function fmtDate(d){return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 function toggleEl(id){const e=document.getElementById(id);e.style.display=e.style.display==='none'?'block':'none'}
+function toggleAcc(bodyId,arrId){const b=document.getElementById(bodyId);const open=b.style.display==='none';b.style.display=open?'block':'none';const a=arrId?document.getElementById(arrId):null;if(a){if(open){a.textContent=a.textContent.includes('詳細')?'▼ 詳細を閉じる':'▼'}else{a.textContent=a.textContent.includes('詳細')?'▶ 詳細を見る':'▶'}}}
 // Week Sun-Sat
 function weekRange(ds){const d=ds?new Date(ds):new Date();const sun=new Date(d);sun.setDate(d.getDate()-d.getDay());const sat=new Date(sun);sat.setDate(sun.getDate()+6);const f=x=>[x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(x.getDate()).padStart(2,'0')].join('-');return{s:f(sun),e:f(sat)}}
 function weekRecs(ds){const{s,e}=weekRange(ds);return D.records.filter(r=>r.date>=s&&r.date<=e)}
@@ -409,21 +437,69 @@ function kpiFmt(name){return{'AP率':fP,'SC率':fP,'3デモ率':fP,'FC紹介率'
 function kpiTgt(name){return{'AP率':D.funnel.ap,'SC率':D.funnel.sc,'3デモ率':D.funnel.d3,'FC紹介率':D.funnel.fc,'CVR':D.targets.cvr,'ATV':D.targets.atv,'UPT':D.targets.upt}[name]||0}
 
 // ===== HOME =====
+function rFocus(k,pm){
+  const el=document.getElementById('focus-content');
+  // Today's budget info
+  const today=td();const todayBdg=D.budgets&&D.budgets[today]||0;
+  const todayRec=D.records.find(r=>r.date===today);const todaySales=todayRec?todayRec.sales:null;
+  let topHtml='';
+  if(todayBdg){
+    if(todaySales!==null){const diff=todaySales-todayBdg;const c=diff>=0?'var(--ok)':'var(--ng)';
+      topHtml=`<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px"><div><div class="ts ttl">今日の売上</div><div class="focus-num" style="color:${c}">${f$k(todaySales)}</div></div><div style="color:${c};font-size:14px;font-weight:800">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">予算 ${f$k(todayBdg)}</div></div>`
+    }else{
+      topHtml=`<div style="margin-bottom:8px"><div class="ts ttl">今日の予算</div><div class="focus-num">${f$k(todayBdg)}</div><div class="ts" style="color:var(--ng);font-size:10px">本日未入力</div></div>`
+    }
+  }
+  // Find worst KPI gaps
+  const t=D.targets,fn=D.funnel;
+  const ACTION_MAP={'AP率':'入口でのお声がけを量を増やす','SC率':'APのお客様にSCを実施する','3デモ率':'洗う→磨く→潤す の3ステップ体験を増やす','FC紹介率':'FC紹介の声掛けを意識する','CVR':'クロージングのタイミングと提案を見直す','ATV':'セット提案・もう1品のご案内を強化','UPT':'もう1品のご案内を強化'};
+  const gaps=[
+    {name:'AP率',val:k.apR,tgt:fn.ap,fmt:fP},
+    {name:'SC率',val:k.scR,tgt:fn.sc,fmt:fP},
+    {name:'3デモ率',val:k.d3R,tgt:fn.d3,fmt:fP},
+    {name:'FC紹介率',val:k.fcR,tgt:fn.fc,fmt:fP},
+    {name:'CVR',val:k.cvr,tgt:t.cvr,fmt:fP},
+    {name:'ATV',val:k.atv,tgt:t.atv,fmt:f$},
+    {name:'UPT',val:k.upt,tgt:t.upt,fmt:fD},
+  ].filter(g=>g.tgt&&g.val<g.tgt&&g.val>0).sort((a,b)=>((b.tgt-b.val)/b.tgt)-((a.tgt-a.val)/a.tgt));
+  let actionHtml='';
+  if(!k.traffic){actionHtml='<div class="ts ttl">データ入力後に表示</div>'}
+  else if(!gaps.length){actionHtml=`<div class="focus-action" style="background:#e8f5e9"><div class="focus-action-lbl">TODAY\'S STATUS</div><div class="focus-action-txt" style="color:var(--ok)">全KPI目標ペース内 ✓</div></div>`}
+  else{
+    const g0=gaps[0];actionHtml=`<div class="focus-action"><div class="focus-action-lbl">最優先アクション</div><div class="focus-action-txt">${ACTION_MAP[g0.name]||g0.name+'を改善'}</div><div style="margin-top:4px;font-size:10px;color:var(--tl)">${g0.name}: ${g0.fmt(g0.val)} → 目標 ${g0.fmt(g0.tgt)}</div></div>`;
+    if(gaps.length>=2){const g1=gaps[1];actionHtml+=`<div class="focus-2nd"><span style="color:var(--tl)">次点:</span> ${ACTION_MAP[g1.name]||g1.name} <span style="color:var(--tl)">(${g1.name} ${g1.fmt(g1.val)})</span></div>`}
+  }
+  el.innerHTML=topHtml+actionHtml
+}
+
+function rFunnelFlow(k){
+  const fn=D.funnel,t=D.targets;
+  function clr(v,tgt){if(!tgt||!v)return'var(--tl)';const r=v/tgt;return r>=1?'var(--ok)':r>=0.9?'var(--t)':r>=0.7?'var(--warn)':'var(--ng)'}
+  function mrk(v,tgt){if(!tgt||!v)return'';const r=v/tgt;return r>=1?'<span style="color:var(--ok)">◎</span>':r>=0.9?'<span style="color:var(--ok)">○</span>':r>=0.7?'<span style="color:var(--warn)">△</span>':'<span style="color:var(--ng)">×</span>'}
+  const steps=[
+    {l:'AP率',v:k.apR,tgt:fn.ap,fmt:fP},{l:'SC率',v:k.scR,tgt:fn.sc,fmt:fP},
+    {l:'3デモ',v:k.d3R,tgt:fn.d3,fmt:fP},{l:'FC',v:k.fcR,tgt:fn.fc,fmt:fP},
+    {l:'CVR',v:k.cvr,tgt:t.cvr,fmt:fP},{l:'ATV',v:k.atv,tgt:t.atv,fmt:n=>n>=10000?Math.round(n/1000)+'k':Math.round(n/100)+'百'},
+    {l:'UPT',v:k.upt,tgt:t.upt,fmt:fD}
+  ];
+  document.getElementById('funnel-flow').innerHTML='<div class="funnel">'+steps.map((s,i)=>`<div class="fn-step"><div class="fn-lbl">${s.l}</div><div class="fn-val" style="color:${clr(s.v,s.tgt)}">${s.v>0?s.fmt(s.v):'-'}</div><div class="fn-mrk">${mrk(s.v,s.tgt)}</div></div>${i<steps.length-1?'<div class="fn-arrow">›</div>':''}`).join('')+'</div>'
+}
+
 function chMo(d){cM=new Date(cM.getFullYear(),cM.getMonth()+d,1);rHome()}
 function rHome(){
   document.getElementById('d-mo').textContent=mL(cM);
   const rs=gR(cM),mk=mK(cM),k=kpi(rs);
   const pm=curPromo();
 
+  // Focus card
+  rFocus(k,pm);
   // Action Effect
   rActionFx(pm,rs);
   // Budget
   rBudgetTrk(rs,mk,k);
-  // Improve
-  rImprove(k);
   // Store KPIs for period switching
   window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._mk=mk;
-  setPeriod('bdg','week');setPeriod('kpi','week');setPeriod('act','month');setPeriod('cat','month');
+  setPeriod('bdg','week');setPeriod('kpi','week');setPeriod('cat','month');
   // vs LY
   // LY: check lyMonthly first, then lyRecords, then records from last year
   const lyMK=mK(new Date(cM.getFullYear()-1,cM.getMonth(),1));
@@ -443,7 +519,6 @@ function setPeriod(section,period){
   document.querySelectorAll(`.ptab[data-pg="${section}"]`).forEach(b=>{b.className=`bsm ${b.textContent==={year:'年',month:'月',week:'週'}[period]?'bp':'bs2'} ptab`;b.style.fontSize='9px';b.style.padding='3px 8px';b.dataset.pg=section});
   if(section==='bdg')rBudgetPeriod(period);
   if(section==='kpi')setKpiPeriod(period);
-  if(section==='act')rActPeriod(period);
   if(section==='cat')rCatDetail(period);
 }
 
@@ -477,9 +552,8 @@ function setKpiPeriod(period){
   const k=period==='month'?window._monthKPI:window._weekKPI;
   if(!k)return;
   const t=D.targets,fn=D.funnel;
-  const label=period==='month'?'月間':'今週';
-  // Update tab styles
-  document.querySelectorAll('#kpi-tabs button').forEach(b=>{b.className=b.textContent===(period==='month'?'月':'週')?'bsm bp':'bsm bs2';b.style.fontSize='9px';b.style.padding='3px 8px'});
+  // Render funnel (always visible)
+  rFunnelFlow(k);
   function kpiBox(label,val,tgt,fmt){
     const tgtStr=tgt?` <span class="ts ttl">(${fmt(tgt)})</span>`:'';
     const color=tgt?(val>=tgt?'var(--ok)':val>=tgt*0.9?'var(--warn)':'var(--ng)'):'var(--t)';
@@ -494,8 +568,10 @@ function setKpiPeriod(period){
     +kpiBox('Traffic',k.traffic,0,fN)
     +kpiBox('Trans',k.trans,0,fN)
     +kpiBox('AP率',k.apR,fn.ap,fP)
-    +kpiBox('3デモ率',k.d3R,0,fP)
+    +kpiBox('3デモ率',k.d3R,fn.d3,fP)
     +`</div>`;
+  // Render act rates in detail panel
+  rActRates(k);
 }
 
 function rActPeriod(period){
