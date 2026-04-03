@@ -360,46 +360,8 @@ const DOW=['日','月','火','水','木','金','土'];
 const KPI_NAMES=['AP率','SC率','3デモ率','FC紹介率','CVR','ATV','UPT'];
 const PG=['home','input','promo','set'];
 
-function ld(){const r=localStorage.getItem(SK);if(r)return JSON.parse(r);return genTestData()}
-function genTestData(){
-  const D={records:[],lyRecords:[],lyMonthly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{'ボディケア':400,'フェイスケア':250,'フレグランス':200,'ギフト':150},budgets:{},categories:['ボディケア','フェイスケア','フレグランス','ギフト'],products:['ボディクリーム','ボディスクラブ','クレンジング','美容液'],staff:['田中','佐藤','鈴木'],promos:[{name:'春のスキンケア強化',start:'2026-03-15',end:'2026-04-15',actionItems:[{action:'入口でBS香り体験→声掛け',kpi:'AP率'},{action:'SC実施→肌タイプ別提案',kpi:'SC率'},{action:'洗う→磨く→潤すの3ステップ体験',kpi:'3デモ率'},{action:'BS→クリームのセット提案',kpi:'ATV'}]}]};
-  // March 2026 test data (31 days)
-  for(let d=1;d<=31;d++){
-    const ds='2026-03-'+String(d).padStart(2,'0');
-    const dow=new Date(2026,2,d).getDay();const isWe=dow===0||dow===6;
-    const base=isWe?130:95;const rand=()=>Math.round((Math.random()-.5)*30);
-    const sales=base+rand();const traffic=isWe?90+Math.round(Math.random()*40):55+Math.round(Math.random()*30);
-    const trans=Math.round(traffic*(0.45+Math.random()*0.15));
-    const ap=Math.round(traffic*(0.75+Math.random()*0.2));
-    const sc=Math.round(ap*(0.2+Math.random()*0.15));
-    const demo12=Math.round(ap*(0.2+Math.random()*0.15));
-    const demo3=Math.round(ap*(0.15+Math.random()*0.1));
-    const fc=Math.round(Math.random()*8);const bs=Math.round(Math.random()*10);
-    const upt=2.0+Math.round(Math.random()*12)/10;
-    const catBody=Math.round(sales*(.35+Math.random()*.1));
-    const catFace=Math.round(sales*(.2+Math.random()*.08));
-    const catFrag=Math.round(sales*(.12+Math.random()*.06));
-    const catGift=sales-catBody-catFace-catFrag;
-    D.records.push({date:ds,sales,traffic,trans,upt:Math.round(upt*10)/10,ap,sc,demo12,demo3,fc,bs,staff:['田中','佐藤','鈴木'][d%3],note:'',categories:{'ボディケア':catBody,'フェイスケア':catFace,'フレグランス':catFrag,'ギフト':Math.max(0,catGift)},products:{}});
-    // Budget
-    D.budgets[ds]=isWe?125:100;
-    D.budgetTrans[ds]=isWe?28:18;
-  }
-  // April 2026 (3 days)
-  for(let d=1;d<=3;d++){
-    const ds='2026-04-'+String(d).padStart(2,'0');
-    const sales=90+Math.round(Math.random()*30);const traffic=60+Math.round(Math.random()*20);
-    const trans=Math.round(traffic*0.5);const ap=Math.round(traffic*0.8);
-    D.records.push({date:ds,sales,traffic,trans,upt:2.3,ap,sc:Math.round(ap*0.25),demo12:Math.round(ap*0.25),demo3:Math.round(ap*0.15),fc:3,bs:4,staff:'田中',note:'',categories:{'ボディケア':Math.round(sales*0.4),'フェイスケア':Math.round(sales*0.22),'フレグランス':Math.round(sales*0.18),'ギフト':Math.round(sales*0.2)},products:{}});
-    D.budgets[ds]=100;D.budgetTrans[ds]=18;
-  }
-  // April budgets for rest of month
-  for(let d=4;d<=30;d++){const ds='2026-04-'+String(d).padStart(2,'0');const dow=new Date(2026,3,d).getDay();D.budgets[ds]=dow===0||dow===6?130:100;D.budgetTrans[ds]=dow===0||dow===6?28:18}
-  // LY Monthly (2025)
-  const lyMonths=[{s:280,tr:450,tn:85},{s:260,tr:420,tn:80},{s:310,tr:500,tn:95},{s:330,tr:520,tn:100},{s:300,tr:480,tn:90},{s:290,tr:460,tn:88},{s:350,tr:550,tn:105},{s:320,tr:510,tn:98},{s:340,tr:530,tn:102},{s:360,tr:560,tn:108},{s:380,tr:580,tn:112},{s:400,tr:600,tn:120}];
-  lyMonths.forEach((m,i)=>{const mk='2025-'+String(i+1).padStart(2,'0');
-    D.lyMonthly[mk]={sales:m.s*10,trans:m.tn*10,traffic:m.tr*10,upt:2.2,ap:Math.round(m.tr*8),sc:Math.round(m.tr*2.5),demo12:Math.round(m.tr*4),demo3:Math.round(m.tr*2.5),fc:Math.round(m.tn),bs:Math.round(m.tn*1.2),'cat-ボディケア':Math.round(m.s*3.5),'cat-フェイスケア':Math.round(m.s*2.5),'cat-フレグランス':Math.round(m.s*1.5),'cat-ギフト':Math.round(m.s*2.5)}});
-  return D}
+function ld(){const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.tyMonthly)d.tyMonthly={};return d}return genEmptyData()}
+function genEmptyData(){return{records:[],lyRecords:[],lyMonthly:{},tyMonthly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{},budgets:{},categories:[],products:[],staff:[],promos:[]}}
 function sv(d){localStorage.setItem(SK,JSON.stringify(d))}
 let D=ld(),cM=new Date();
 
