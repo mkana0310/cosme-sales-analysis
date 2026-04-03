@@ -1,5 +1,5 @@
-const CACHE_NAME = 'sales-analysis-v1';
-const ASSETS = ['./index.html', './manifest.json'];
+const CACHE_NAME = 'sales-analysis-v2';
+const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
