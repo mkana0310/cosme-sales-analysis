@@ -415,6 +415,9 @@ function weekRecs(ds){const{s,e}=weekRange(ds);return D.records.filter(r=>r.date
 function prevWeekRecs(ds){const{s}=weekRange(ds);const d=new Date(s);d.setDate(d.getDate()-7);return weekRecs([d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'))}
 function curPromo(){const t=td();return D.promos.find(p=>p.start<=t&&p.end>=t)}
 function kpi(rs){const s=sm(rs,'sales'),tr=sm(rs,'traffic'),tn=sm(rs,'trans'),ap=sm(rs,'ap'),sc=sm(rs,'sc'),d12=sm(rs,'demo12'),d3=sm(rs,'demo3'),dm=d12+d3,fc=sm(rs,'fc');return{sales:s,traffic:tr,trans:tn,cvr:CVR(tr,tn),atv:ATV(s,tn),upt:avgUpt(rs),apR:tr>0?(ap/tr)*100:0,scR:ap>0?(sc/ap)*100:0,d3R:dm>0?(d3/dm)*100:0,fcR:tn>0?(fc/tn)*100:0,ap,sc,d12,d3,fc,bs:sm(rs,'bs')}}
+function kpiFromMonthly(v){const s=v.sales||0,tr=v.traffic||0,tn=v.trans||0,ap=v.ap||0,sc=v.sc||0,d12=v.demo12||0,d3=v.demo3||0,dm=d12+d3,fc=v.fc||0;return{sales:s,traffic:tr,trans:tn,cvr:CVR(tr,tn),atv:ATV(s,tn),upt:v.upt||0,apR:tr>0?(ap/tr)*100:0,scR:ap>0?(sc/ap)*100:0,d3R:dm>0?(d3/dm)*100:0,fcR:tn>0?(fc/tn)*100:0,ap,sc,d12,d3,fc,bs:v.bs||0}}
+// 月の実績KPIを取得（tyMonthly優先 > 日別レコード）
+function getMonthKPI(d){const mk=mK(d);const tmo=D.tyMonthly&&D.tyMonthly[mk];return tmo?kpiFromMonthly(tmo):kpi(gR(d))}
 function kpiVal(k,name){return{'AP率':k.apR,'SC率':k.scR,'3デモ率':k.d3R,'FC紹介率':k.fcR,'CVR':k.cvr,'ATV':k.atv,'UPT':k.upt}[name]||0}
 function kpiFmt(name){return{'AP率':fP,'SC率':fP,'3デモ率':fP,'FC紹介率':fP,'CVR':fP,'ATV':f$,'UPT':fD}[name]||fP}
 function kpiTgt(name){return{'AP率':D.funnel.ap,'SC率':D.funnel.sc,'3デモ率':D.funnel.d3,'FC紹介率':D.funnel.fc,'CVR':D.targets.cvr,'ATV':D.targets.atv,'UPT':D.targets.upt}[name]||0}
@@ -471,7 +474,8 @@ function rFunnelFlow(k){
 function chMo(d){cM=new Date(cM.getFullYear(),cM.getMonth()+d,1);rHome()}
 function rHome(){
   document.getElementById('d-mo').textContent=mL(cM);
-  const rs=gR(cM),mk=mK(cM),k=kpi(rs);
+  const rs=gR(cM),mk=mK(cM);
+  const k=getMonthKPI(cM);  // tyMonthly優先
   const pm=curPromo();
 
   // Focus card (week KPI = 直近トレンド)
@@ -510,36 +514,51 @@ function rBudgetPeriod(period){
   const el=document.getElementById('budget-trk');
   const mk=window._mk||mK(cM);
   if(period==='year'){
-    const year=cM.getFullYear();let ytdSales=0,ytdBdg=0;const yesterday=yest();
-    const weeklySet=new Set(D.tyWeekly?Object.keys(D.tyWeekly):[]);
-    // Daily records (skip days in tyWeekly weeks or tyMonthly months, and skip today+future)
-    D.records.filter(r=>r.date.substring(0,4)===String(year)&&r.date<=yesterday).forEach(r=>{
-      const ws=weekRange(r.date).s;const rmk=r.date.substring(0,7);
-      if(weeklySet.has(ws))return;if(D.tyMonthly&&D.tyMonthly[rmk])return;
-      ytdSales+=r.sales||0});
-    // tyMonthly (completed months only)
-    if(D.tyMonthly)Object.entries(D.tyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===String(year)&&k<yesterday.substring(0,7))ytdSales+=v.sales||0});
-    // tyWeekly (weeks not covered by tyMonthly, week must be complete = Saturday <= yesterday)
-    if(D.tyWeekly)Object.entries(D.tyWeekly).forEach(([ws,v])=>{
-      if(ws.substring(0,4)!==String(year))return;
-      if(D.tyMonthly&&D.tyMonthly[ws.substring(0,7)])return;
-      const{e:we}=weekRange(ws);if(we<=yesterday)ytdSales+=v.sales||0});
-    // 月別予算優先、なければ日別予算（昨日まで）
+    const year=cM.getFullYear();const now=new Date();
+    // cMが過去月なら月末まで、当月/未来なら昨日まで
+    const isPastMo=year<now.getFullYear()||(year===now.getFullYear()&&cM.getMonth()<now.getMonth());
+    const cutoff=isPastMo?`${year}-${String(cM.getMonth()+1).padStart(2,'0')}-${String(new Date(year,cM.getMonth()+1,0).getDate()).padStart(2,'0')}`:yest();
+    const cutoffMo=cutoff.substring(0,7);
+    // 月実績を取得するヘルパー（tyMonthly優先 > tyWeekly > 日別）
+    function moActual(mk2){
+      if(D.tyMonthly&&D.tyMonthly[mk2])return D.tyMonthly[mk2].sales||0;
+      const[y2,m2]=mk2.split('-').map(Number);const moEnd=`${y2}-${String(m2).padStart(2,'0')}-${String(new Date(y2,m2,0).getDate()).padStart(2,'0')}`;
+      let s=0;
+      D.records.filter(r=>r.date.substring(0,7)===mk2&&r.date<=cutoff).forEach(r=>{const ws=weekRange(r.date).s;if(!D.tyWeekly||!D.tyWeekly[ws])s+=r.sales||0});
+      if(D.tyWeekly)Object.entries(D.tyWeekly).forEach(([ws,v])=>{if(ws.substring(0,7)===mk2){const{e:we}=weekRange(ws);if(we<=moEnd)s+=v.sales||0}});
+      return s;
+    }
+    let ytdSales=0,ytdBdg=0;
+    for(let m=1;m<=12;m++){const mk2=`${year}-${String(m).padStart(2,'0')}`;if(mk2>cutoffMo)break;ytdSales+=moActual(mk2)}
+    // 予算（月別優先）
     const hasMBdg=D.monthlyBudgets&&Object.keys(D.monthlyBudgets).some(k=>k.substring(0,4)===String(year));
-    if(hasMBdg){
-      for(let m=1;m<=12;m++){const mk2=year+'-'+String(m).padStart(2,'0');if(mk2>yesterday.substring(0,7))break;const mb=D.monthlyBudgets[mk2]||0;if(!mb)continue;
-        if(mk2<yesterday.substring(0,7))ytdBdg+=mb;else ytdBdg+=Math.round(mb*parseInt(yesterday.substring(8,10))/new Date(year,m,0).getDate())}
-    }else{if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,4)===String(year)&&d<=yesterday)ytdBdg+=v})}
-    // LY（昨日と同月末まで）
+    if(hasMBdg){for(let m=1;m<=12;m++){const mk2=`${year}-${String(m).padStart(2,'0')}`;if(mk2>cutoffMo)break;const mb=D.monthlyBudgets[mk2]||0;if(!mb)continue;if(mk2<cutoffMo)ytdBdg+=mb;else ytdBdg+=Math.round(mb*parseInt(cutoff.substring(8,10))/new Date(year,m,0).getDate())}}
+    else{if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,4)===String(year)&&d<=cutoff)ytdBdg+=v})}
+    // LY
     const lyYear=year-1;let lyYTD=0;
-    if(D.lyMonthly)Object.entries(D.lyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===String(lyYear)&&k<yesterday.substring(0,7))lyYTD+=v.sales||0});
-    if(D.lyRecords)D.lyRecords.filter(r=>r.date.substring(0,4)===String(lyYear)&&r.date.substring(0,7)<yesterday.substring(0,7)).forEach(r=>{lyYTD+=r.sales||0});
+    if(D.lyMonthly)Object.entries(D.lyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===String(lyYear)&&k<=`${lyYear}-${cutoffMo.substring(5,7)}`)lyYTD+=v.sales||0});
+    if(D.lyRecords)D.lyRecords.filter(r=>r.date.substring(0,4)===String(lyYear)&&r.date.substring(0,7)<=`${lyYear}-${cutoffMo.substring(5,7)}`).forEach(r=>{lyYTD+=r.sales||0});
     const diff=ytdSales-ytdBdg;
     const lyDiffK=lyYTD>0?ytdSales-lyYTD:null;const lyDiffPct=lyYTD>0?Math.round((ytdSales-lyYTD)/lyYTD*1000)/10:null;
+    const cutLabel=isPastMo?`1〜${cM.getMonth()+1}月`:`〜昨日`;
+    // 月別テーブル
+    const lyYear2=year-1;
+    let tbl=`<table class="dt" style="margin-top:10px;font-size:11px"><thead><tr><th>月</th><th class="n">実績</th><th class="n">予算</th><th class="n">差異</th><th class="n">LY比</th></tr></thead><tbody>`;
+    for(let m=1;m<=12;m++){
+      const mk2=`${year}-${String(m).padStart(2,'0')}`;if(mk2>cutoffMo)break;
+      const mA=moActual(mk2);const mB=D.monthlyBudgets?.[mk2]||0;
+      const lyMK2=`${lyYear2}-${String(m).padStart(2,'0')}`;
+      let lyA=D.lyMonthly?.[lyMK2]?.sales||0;
+      if(!lyA)lyA=D.lyRecords?D.lyRecords.filter(r=>r.date.substring(0,7)===lyMK2).reduce((s,r)=>s+(r.sales||0),0):0;
+      const mD=mB?mA-mB:null;const lyD=lyA?mA-lyA:null;const lyP=lyA?Math.round((mA-lyA)/lyA*1000)/10:null;
+      tbl+=`<tr><td>${m}月${mk2===mK(cM)?'◀':''}</td><td class="n">${mA?f$k(mA):'-'}</td><td class="n">${mB?f$k(mB):'-'}</td><td class="n ${mD!==null?mD>=0?'pos':'neg':''}">${mD!==null?(mD>=0?'+':'')+f$k(mD):'-'}</td><td class="n ${lyD!==null?lyD>=0?'pos':'neg':''}">${lyD!==null?(lyD>=0?'+':'')+f$k(lyD)+'<br><span class="ts">'+(lyP>=0?'+':'')+fP(lyP)+'</span>':'-'}</td></tr>`;
+    }
+    tbl+=`<tr style="font-weight:700"><td>累計</td><td class="n">${f$k(ytdSales)}</td><td class="n">${ytdBdg?f$k(ytdBdg):'-'}</td><td class="n ${diff>=0?'pos':'neg'}">${ytdBdg?(diff>=0?'+':'')+f$k(diff):'-'}</td><td class="n ${lyDiffK!==null?lyDiffK>=0?'pos':'neg':''}">${lyDiffK!==null?(lyDiffK>=0?'+':'')+f$k(lyDiffK)+'<br><span class="ts">'+(lyDiffPct>=0?'+':'')+fP(lyDiffPct)+'</span>':'-'}</td></tr>`;
+    tbl+=`</tbody></table>`;
     el.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap">
-      <div><div class="ts ttl">${year}年 予算差（〜昨日）</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>
-      ${lyYTD?`<div><div class="ts ttl">前年比（〜昨日）</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(ytdSales)} / LY${f$k(lyYTD)}</div></div>`:''}
-    </div>`;
+      <div><div class="ts ttl">${year}年 予算差（${cutLabel}）</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>
+      ${lyYTD?`<div><div class="ts ttl">前年比（${cutLabel}）</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(ytdSales)} / LY${f$k(lyYTD)}</div></div>`:''}
+    </div>${tbl}`;
   }else if(period==='week'){
     const{s,e}=weekRange();const yesterday=yest();
     let wBdgAll=0,wBdgToDate=0,wBdgAllT=0,wBdgToDateT=0;
@@ -627,10 +646,16 @@ function rActRates(k){
 
 function rCatDetail(period){
   const el=document.getElementById('cat-detail');
-  const rs=period==='week'?weekRecs():gR(cM);
-  const k=kpi(rs);
-  // Category totals
-  const ct={};rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})});
+  let k,ct={};
+  if(period==='week'){
+    const rs=weekRecs();k=kpi(rs);
+    rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})});
+  }else{
+    k=getMonthKPI(cM);  // tyMonthly優先
+    const mk=mK(cM);const tmo=D.tyMonthly&&D.tyMonthly[mk];
+    if(tmo){D.categories.forEach(c=>{if(tmo['cat-'+c])ct[c]=tmo['cat-'+c]})}
+    else{const rs=gR(cM);rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})})}
+  }
   const totalSales=k.sales;
   // Monthly targets for SOB
   const catTgts=D.catTargets||{};
