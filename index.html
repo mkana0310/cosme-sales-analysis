@@ -180,11 +180,11 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
         <span class="ct" style="margin:0">カテゴリ別</span>
         <div style="display:flex;align-items:center;gap:8px">
           <div style="display:flex;gap:4px" onclick="event.stopPropagation()"><button class="bsm bs2 ptab" data-pg="cat" onclick="setPeriod('cat','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="cat" onclick="setPeriod('cat','week')" style="font-size:9px;padding:3px 8px">週</button></div>
-          <span id="cat-arr" class="acc-arr">▶</span>
+          <span id="cat-arr" class="acc-arr">▼</span>
         </div>
       </div>
     </button>
-    <div id="cat-body" style="display:none;margin-top:8px">
+    <div id="cat-body" style="display:block;margin-top:8px">
       <div id="cat-detail"></div>
     </div>
   </div>
@@ -416,8 +416,20 @@ function prevWeekRecs(ds){const{s}=weekRange(ds);const d=new Date(s);d.setDate(d
 function curPromo(){const t=td();return D.promos.find(p=>p.start<=t&&p.end>=t)}
 function kpi(rs){const s=sm(rs,'sales'),tr=sm(rs,'traffic'),tn=sm(rs,'trans'),ap=sm(rs,'ap'),sc=sm(rs,'sc'),d12=sm(rs,'demo12'),d3=sm(rs,'demo3'),dm=d12+d3,fc=sm(rs,'fc');return{sales:s,traffic:tr,trans:tn,cvr:CVR(tr,tn),atv:ATV(s,tn),upt:avgUpt(rs),apR:tr>0?(ap/tr)*100:0,scR:ap>0?(sc/ap)*100:0,d3R:dm>0?(d3/dm)*100:0,fcR:tn>0?(fc/tn)*100:0,ap,sc,d12,d3,fc,bs:sm(rs,'bs')}}
 function kpiFromMonthly(v){const s=v.sales||0,tr=v.traffic||0,tn=v.trans||0,ap=v.ap||0,sc=v.sc||0,d12=v.demo12||0,d3=v.demo3||0,dm=d12+d3,fc=v.fc||0;return{sales:s,traffic:tr,trans:tn,cvr:CVR(tr,tn),atv:ATV(s,tn),upt:v.upt||0,apR:tr>0?(ap/tr)*100:0,scR:ap>0?(sc/ap)*100:0,d3R:dm>0?(d3/dm)*100:0,fcR:tn>0?(fc/tn)*100:0,ap,sc,d12,d3,fc,bs:v.bs||0}}
-// 月の実績KPIを取得（tyMonthly優先 > 日別レコード）
-function getMonthKPI(d){const mk=mK(d);const tmo=D.tyMonthly&&D.tyMonthly[mk];return tmo?kpiFromMonthly(tmo):kpi(gR(d))}
+// 月の実績KPIを取得（優先順位: tyMonthly > tyWeekly+日別）
+function getMonthKPI(d){
+  const mk=mK(d);
+  if(D.tyMonthly&&D.tyMonthly[mk])return kpiFromMonthly(D.tyMonthly[mk]);
+  // tyWeeklyがある週は週合計、ない週は日別レコードで合計
+  const rs=gR(d);
+  const weeklySet=new Set(D.tyWeekly?Object.keys(D.tyWeekly):[]);
+  const dayRecs=rs.filter(r=>{const ws=weekRange(r.date).s;return!weeklySet.has(ws)});
+  let s=sm(dayRecs,'sales'),tr=sm(dayRecs,'traffic'),tn=sm(dayRecs,'trans');
+  if(D.tyWeekly)Object.entries(D.tyWeekly).forEach(([ws,v])=>{if(ws.substring(0,7)===mk){s+=v.sales||0;tr+=v.traffic||0;tn+=v.trans||0}});
+  if(!s&&!tn)return kpi(rs); // fallback to daily if no tyWeekly either
+  const combined={sales:s,traffic:tr,trans:tn,cvr:CVR(tr,tn),atv:ATV(s,tn),upt:avgUpt(dayRecs)};
+  return{...combined,apR:0,scR:0,d3R:0,fcR:0,ap:0,sc:0,d12:0,d3:0,fc:0,bs:0}
+}
 function kpiVal(k,name){return{'AP率':k.apR,'SC率':k.scR,'3デモ率':k.d3R,'FC紹介率':k.fcR,'CVR':k.cvr,'ATV':k.atv,'UPT':k.upt}[name]||0}
 function kpiFmt(name){return{'AP率':fP,'SC率':fP,'3デモ率':fP,'FC紹介率':fP,'CVR':fP,'ATV':f$,'UPT':fD}[name]||fP}
 function kpiTgt(name){return{'AP率':D.funnel.ap,'SC率':D.funnel.sc,'3デモ率':D.funnel.d3,'FC紹介率':D.funnel.fc,'CVR':D.targets.cvr,'ATV':D.targets.atv,'UPT':D.targets.upt}[name]||0}
@@ -534,10 +546,9 @@ function rBudgetPeriod(period){
     const hasMBdg=D.monthlyBudgets&&Object.keys(D.monthlyBudgets).some(k=>k.substring(0,4)===String(year));
     if(hasMBdg){for(let m=1;m<=12;m++){const mk2=`${year}-${String(m).padStart(2,'0')}`;if(mk2>cutoffMo)break;const mb=D.monthlyBudgets[mk2]||0;if(!mb)continue;if(mk2<cutoffMo)ytdBdg+=mb;else ytdBdg+=Math.round(mb*parseInt(cutoff.substring(8,10))/new Date(year,m,0).getDate())}}
     else{if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,4)===String(year)&&d<=cutoff)ytdBdg+=v})}
-    // LY
+    // LY（月別優先・日別と二重カウントしない）
     const lyYear=year-1;let lyYTD=0;
-    if(D.lyMonthly)Object.entries(D.lyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===String(lyYear)&&k<=`${lyYear}-${cutoffMo.substring(5,7)}`)lyYTD+=v.sales||0});
-    if(D.lyRecords)D.lyRecords.filter(r=>r.date.substring(0,4)===String(lyYear)&&r.date.substring(0,7)<=`${lyYear}-${cutoffMo.substring(5,7)}`).forEach(r=>{lyYTD+=r.sales||0});
+    for(let m=1;m<=12;m++){const lyMk2=`${lyYear}-${String(m).padStart(2,'0')}`;if(lyMk2>`${lyYear}-${cutoffMo.substring(5,7)}`)break;if(D.lyMonthly&&D.lyMonthly[lyMk2])lyYTD+=D.lyMonthly[lyMk2].sales||0;else if(D.lyRecords)lyYTD+=D.lyRecords.filter(r=>r.date.substring(0,7)===lyMk2).reduce((s,r)=>s+(r.sales||0),0)}
     const diff=ytdSales-ytdBdg;
     const lyDiffK=lyYTD>0?ytdSales-lyYTD:null;const lyDiffPct=lyYTD>0?Math.round((ytdSales-lyYTD)/lyYTD*1000)/10:null;
     const cutLabel=isPastMo?`1〜${cM.getMonth()+1}月`:`〜昨日`;
@@ -547,11 +558,13 @@ function rBudgetPeriod(period){
     for(let m=1;m<=12;m++){
       const mk2=`${year}-${String(m).padStart(2,'0')}`;if(mk2>cutoffMo)break;
       const mA=moActual(mk2);const mB=D.monthlyBudgets?.[mk2]||0;
+      const isCurrMo=mk2===mK(new Date());
       const lyMK2=`${lyYear2}-${String(m).padStart(2,'0')}`;
       let lyA=D.lyMonthly?.[lyMK2]?.sales||0;
       if(!lyA)lyA=D.lyRecords?D.lyRecords.filter(r=>r.date.substring(0,7)===lyMK2).reduce((s,r)=>s+(r.sales||0),0):0;
       const mD=mB?mA-mB:null;const lyD=lyA?mA-lyA:null;const lyP=lyA?Math.round((mA-lyA)/lyA*1000)/10:null;
-      tbl+=`<tr><td>${m}月${mk2===mK(cM)?'◀':''}</td><td class="n">${mA?f$k(mA):'-'}</td><td class="n">${mB?f$k(mB):'-'}</td><td class="n ${mD!==null?mD>=0?'pos':'neg':''}">${mD!==null?(mD>=0?'+':'')+f$k(mD):'-'}</td><td class="n ${lyD!==null?lyD>=0?'pos':'neg':''}">${lyD!==null?(lyD>=0?'+':'')+f$k(lyD)+'<br><span class="ts">'+(lyP>=0?'+':'')+fP(lyP)+'</span>':'-'}</td></tr>`;
+      const moLabel=`${m}月${isCurrMo?'<span class="ts" style="color:var(--p)">今月</span>':''}`;
+      tbl+=`<tr><td style="white-space:nowrap">${moLabel}</td><td class="n">${mA?f$k(mA)+(isCurrMo?'<span class="ts">〜昨日</span>':''):'-'}</td><td class="n">${mB?f$k(mB):'-'}</td><td class="n ${mD!==null?mD>=0?'pos':'neg':''}">${mD!==null?(mD>=0?'+':'')+f$k(mD):'-'}</td><td class="n ${lyD!==null?lyD>=0?'pos':'neg':''}">${lyD!==null?(lyD>=0?'+':'')+f$k(lyD)+'<br><span class="ts">'+(lyP>=0?'+':'')+fP(lyP)+'</span>':'-'}</td></tr>`;
     }
     tbl+=`<tr style="font-weight:700"><td>累計</td><td class="n">${f$k(ytdSales)}</td><td class="n">${ytdBdg?f$k(ytdBdg):'-'}</td><td class="n ${diff>=0?'pos':'neg'}">${ytdBdg?(diff>=0?'+':'')+f$k(diff):'-'}</td><td class="n ${lyDiffK!==null?lyDiffK>=0?'pos':'neg':''}">${lyDiffK!==null?(lyDiffK>=0?'+':'')+f$k(lyDiffK)+'<br><span class="ts">'+(lyDiffPct>=0?'+':'')+fP(lyDiffPct)+'</span>':'-'}</td></tr>`;
     tbl+=`</tbody></table>`;
@@ -579,7 +592,14 @@ function rBudgetPeriod(period){
       <div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">〜昨日 予算差</div><div style="font-size:15px;font-weight:800;color:${diffTD>=0?'var(--ok)':'var(--ng)'}">${diffTD>=0?'+':''}${f$k(diffTD)}</div><div class="ts ttl">${f$k(wS)} / 〜昨日予算${f$k(wBdgToDate)}</div></div>
       ${lyDiffK!==null?`<div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(wS)} / LY${f$k(lyWSales)}</div></div>`:''}
     </div>`;
-    if(wBdgAllT>0)html+=`<div class="ts ttl">客数：実績${fN(wT)} / 〜昨日予算${fN(wBdgToDateT)}</div>`;
+    const atvTgtW=D.targets?.atv||0;
+    if(wBdgToDateT>0||wT>0||atvTgtW>0){
+      html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:8px;margin-top:4px">`;
+      if(wBdgToDateT>0){const tD=wT-wBdgToDateT;html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(wT)} / 予算${fN(wBdgToDateT)}</div></div>`}
+      else if(wT>0)html+=`<div><div class="ts ttl">客数</div><div style="font-size:13px;font-weight:700">${fN(wT)}</div></div>`;
+      if(atvTgtW>0&&wT>0){const wAtv=Math.round(wS*1000/wT);const aD=wAtv-atvTgtW;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${wAtv.toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgtW).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
+      html+=`</div>`;
+    }
     if(diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.ceil(Math.abs(diffAll)/dLeft))}/日で挽回</div>`;
     el.innerHTML=html;
   }else{
@@ -665,7 +685,8 @@ function rCatDetail(period){
   // Week ratio (for week view: divide monthly target by ~4.3)
   const weekRatio=period==='week'?7/dim(cM):1;
 
-  if(!D.categories.length||!totalSales){el.innerHTML='<div class="ts ttl">データなし</div>';return}
+  if(!D.categories.length){el.innerHTML='<div class="ts ttl">設定タブでカテゴリーを登録してください</div>';return}
+  if(!totalSales&&!Object.keys(ct).length){el.innerHTML='<div class="ts ttl">データなし（TY月別またはTY日別でカテゴリーを入力）</div>';return}
 
   el.innerHTML='<table class="dt"><thead><tr><th>カテゴリ</th><th class="n">実績</th><th class="n">SOB</th><th class="n">予算</th><th class="n">差</th><th class="n">LY比</th></tr></thead><tbody>'
     +D.categories.map(c=>{
@@ -719,7 +740,8 @@ function rBudgetTrk(rs,mk,k){
   // LY
   const lyMK=mK(new Date(parseInt(mk.substring(0,4))-1,parseInt(mk.substring(5,7))-1,1));
   const lyMo=D.lyMonthly&&D.lyMonthly[lyMK];
-  const lyS=lyMo?lyMo.sales:0;
+  // lyMonthly優先、なければlyRecordsで合計（二重カウントしない）
+  const lyS=lyMo?lyMo.sales:(D.lyRecords?D.lyRecords.filter(r=>r.date.substring(0,7)===lyMK).reduce((s,r)=>s+(r.sales||0),0):0);
   const lyDiffK=lyS>0?k.sales-lyS:null;const lyDiffPct=lyS>0?Math.round((k.sales-lyS)/lyS*1000)/10:null;
   const diff=k.sales-bdgToDate;
   const pct=bdgMonth>0?Math.min((k.sales/bdgMonth)*100,100):0;
@@ -730,6 +752,15 @@ function rBudgetTrk(rs,mk,k){
       ${lyS?`<div><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(k.sales)} / LY${f$k(lyS)}</div></div>`:''}
     </div>`;
   if(diff<0&&remDays>0)html+=`<div class="ts" style="color:var(--ng);margin-top:4px">残${remDays}日 +${f$k(Math.ceil(Math.abs(diff)/remDays))}/日 必要</div>`;
+  // Trans / ATV
+  const atvTgt=D.targets?.atv||0;
+  if(trnToDate>0||k.trans>0||atvTgt>0){
+    html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:8px;margin-top:8px">`;
+    if(trnToDate>0){const tD=k.trans-trnToDate;html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(k.trans)} / 予算${fN(trnToDate)}</div></div>`}
+    else if(k.trans>0)html+=`<div><div class="ts ttl">客数</div><div style="font-size:13px;font-weight:700">${fN(k.trans)}</div></div>`;
+    if(atvTgt>0&&k.trans>0){const aD=k.atv-atvTgt;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${Math.round(k.atv).toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgt).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
+    html+=`</div>`;
+  }
   el.innerHTML=html;
 }
 
