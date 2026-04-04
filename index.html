@@ -275,7 +275,7 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
 <!-- ===== PROMO ===== -->
 <div id="pg-promo" class="pg">
   <div class="c">
-    <div class="ct">新規プロモーション</div>
+    <div class="ct" id="pm-form-title">新規プロモーション</div>
     <div class="fg"><label class="fl">プロモ名</label><input type="text" class="fi" id="pm-name" placeholder="例：春スキンケア強化"></div>
     <div class="fr"><div class="fg"><label class="fl">開始</label><input type="date" class="fi" id="pm-start"></div><div class="fg"><label class="fl">終了</label><input type="date" class="fi" id="pm-end"></div></div>
     <div class="ct mt8">アクション → 対象KPI</div>
@@ -287,7 +287,7 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
     <div id="pm-cats"></div>
     <div class="ct mt12">強化商品</div>
     <div class="fg"><input type="text" class="fi" id="pm-products" placeholder="例：ボディスクラブ、クレンジング（カンマ区切り）" style="font-size:13px"></div>
-    <button class="btn bp mt8" onclick="savePm()">登録</button>
+    <button class="btn bp mt8" id="pm-save-btn" onclick="savePm()">登録</button>
   </div>
   <div class="c"><div class="ct">プロモ一覧</div><div id="pm-list"></div></div>
 </div>
@@ -316,6 +316,7 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
     <div class="ct">カテゴリ＆月間目標 <span class="hint">(千円)</span></div>
     <div class="fr"><div class="fg" style="flex:2"><input type="text" class="fi" id="nc" placeholder="カテゴリ名"></div><div class="fg" style="flex:1"><button class="btn bp" onclick="addCat()" style="height:42px">追加</button></div></div>
     <div id="cat-set"></div>
+    <button class="btn bp mt8" onclick="saveTgt()">カテゴリ目標を保存</button>
   </div>
 
   <!-- Staff -->
@@ -498,11 +499,18 @@ function rBudgetPeriod(period){
     const diff=ytdSales-ytdBdg,tDiff=ytdTrans-ytdBdgTrans;
     el.innerHTML=`<div style="display:flex;gap:16px"><div><div class="ts ttl">${year}年 売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>${ytdBdgTrans?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${tDiff>=0?'var(--ok)':'var(--ng)'}">${tDiff>=0?'+':''}${fN(tDiff)}</div><div class="ts ttl">${fN(ytdTrans)} / ${fN(ytdBdgTrans)}</div></div>`:''}</div>`;
   }else if(period==='week'){
-    const wr=weekRecs();let wBdg=0,wBdgT=0;wr.forEach(r=>{wBdg+=D.budgets&&D.budgets[r.date]||0;wBdgT+=D.budgetTrans&&D.budgetTrans[r.date]||0});
-    const wS=sm(wr,'sales'),wT=sm(wr,'trans'),diff=wS-wBdg,tDiff=wT-wBdgT;
-    const{e}=weekRange();const dLeft=Math.max(0,Math.ceil((new Date(e)-new Date())/(86400000)));
-    let html=`<div style="display:flex;gap:16px"><div><div class="ts ttl">今週 売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(wS)} / 予算${f$k(wBdg)}</div></div>${wBdgT?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${tDiff>=0?'var(--ok)':'var(--ng)'}">${tDiff>=0?'+':''}${fN(tDiff)}</div><div class="ts ttl">${fN(wT)} / ${fN(wBdgT)}</div></div>`:''}</div>`;
-    if(diff<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.abs(diff)/dLeft)}/日で挽回</div>`;
+    const{s,e}=weekRange();const today=td();
+    let wBdgAll=0,wBdgToDate=0,wBdgAllT=0,wBdgToDateT=0;
+    let wd=new Date(s);while(fmtDate(wd)<=e){const ds=fmtDate(wd);const b=D.budgets&&D.budgets[ds]||0,bt=D.budgetTrans&&D.budgetTrans[ds]||0;wBdgAll+=b;wBdgAllT+=bt;if(ds<=today){wBdgToDate+=b;wBdgToDateT+=bt}wd.setDate(wd.getDate()+1)}
+    const wr=weekRecs();const wS=sm(wr,'sales'),wT=sm(wr,'trans');
+    const diffAll=wS-wBdgAll,diffTD=wS-wBdgToDate;
+    const dLeft=Math.max(0,Math.ceil((new Date(e)-new Date())/(86400000)));
+    let html=`<div style="display:flex;gap:12px;margin-bottom:8px">
+      <div><div class="ts ttl">週全体</div><div style="font-size:15px;font-weight:800;color:${diffAll>=0?'var(--ok)':'var(--ng)'}">${diffAll>=0?'+':''}${f$k(diffAll)}</div><div class="ts ttl">${f$k(wS)} / ${f$k(wBdgAll)}</div></div>
+      <div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">今日まで</div><div style="font-size:15px;font-weight:800;color:${diffTD>=0?'var(--ok)':'var(--ng)'}">${diffTD>=0?'+':''}${f$k(diffTD)}</div><div class="ts ttl">${f$k(wS)} / ${f$k(wBdgToDate)}</div></div>
+    </div>`;
+    if(wBdgAllT>0)html+=`<div class="ts ttl">客数：実績${fN(wT)} / 今日まで予算${fN(wBdgToDateT)}</div>`;
+    if(diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.abs(diffAll)/dLeft)}/日で挽回</div>`;
     el.innerHTML=html;
   }else{
     // Month - existing logic
@@ -783,24 +791,35 @@ function saveLYD(){
   D.lyRecords.sort((a,b)=>a.date.localeCompare(b.date));sv(D);alert(c+'日分(LY)登録！')}
 
 // ===== PROMO =====
-let pmActN=0;
+let pmActN=0,pmEditIdx=-1;
 function addPmAct(){const list=document.getElementById('pm-acts'),id=pmActN++;const div=document.createElement('div');div.className='fr mb8';div.id='pa-'+id;
   div.innerHTML=`<div class="fg" style="flex:3;margin:0"><input type="text" class="fi" data-pa-a="${id}" placeholder="アクション内容" style="font-size:13px"></div><div class="fg" style="flex:2;margin:0"><select class="fi" data-pa-k="${id}" style="font-size:13px">${KPI_NAMES.map(k=>`<option>${k}</option>`).join('')}</select></div><button class="del" onclick="document.getElementById('pa-${id}').remove()">×</button>`;
   list.appendChild(div)}
-function rPm(){pmActN=0;document.getElementById('pm-name').value='';document.getElementById('pm-start').value='';document.getElementById('pm-end').value='';document.getElementById('pm-products').value='';
+function rPm(){pmActN=0;pmEditIdx=-1;document.getElementById('pm-name').value='';document.getElementById('pm-start').value='';document.getElementById('pm-end').value='';document.getElementById('pm-products').value='';
+  document.getElementById('pm-form-title').textContent='新規プロモーション';document.getElementById('pm-save-btn').textContent='登録';
   document.getElementById('pm-acts').innerHTML='';addPmAct();addPmAct();addPmAct();addPmAct();
-  // Category inputs
   document.getElementById('pm-cats').innerHTML=D.categories.map(c=>`<div class="fg"><label class="fl" style="font-size:11px">${c}</label><input type="text" class="fi" data-pmcat="${c}" placeholder="方針（例：セット提案強化）" style="font-size:12px"></div>`).join('');
   const el=document.getElementById('pm-list'),today=td();
   if(!D.promos.length){el.innerHTML='<div class="ts ttl">プロモなし</div>';return}
   el.innerHTML=D.promos.sort((a,b)=>b.start.localeCompare(a.start)).map((p,i)=>{const isA=p.start<=today&&p.end>=today;
-    return`<div class="c" style="${isA?'border-left:4px solid var(--p)':''}"><div style="display:flex;justify-content:space-between"><div><div style="font-weight:700;font-size:13px">${p.name}${isA?' <span class="tg tg-up">実施中</span>':''}</div><div class="ts ttl">${p.start}〜${p.end}</div></div><button class="del" onclick="delPm(${i})">×</button></div>${(p.actionItems||[]).map(a=>`<div class="ts mt8">${a.action} → <strong>${a.kpi}</strong></div>`).join('')}${p.catActions?Object.entries(p.catActions).map(([c,v])=>`<div class="ts" style="color:var(--info)">【${c}】${v}</div>`).join(''):''}${p.focusProducts&&p.focusProducts.length?`<div class="ts mt8" style="color:var(--pd)">強化品: ${p.focusProducts.join('、')}</div>`:''}</div>`}).join('')}
+    return`<div class="c" style="${isA?'border-left:4px solid var(--p)':''}"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700;font-size:13px">${p.name}${isA?' <span class="tg tg-up">実施中</span>':''}</div><div class="ts ttl">${p.start}〜${p.end}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="btn bsm bs2" style="font-size:10px;padding:3px 8px" onclick="editPm(${i})">編集</button><button class="del" onclick="delPm(${i})">×</button></div></div>${(p.actionItems||[]).map(a=>`<div class="ts mt8">${a.action} → <strong>${a.kpi}</strong></div>`).join('')}${p.catActions?Object.entries(p.catActions).map(([c,v])=>`<div class="ts" style="color:var(--info)">【${c}】${v}</div>`).join(''):''}${p.focusProducts&&p.focusProducts.length?`<div class="ts mt8" style="color:var(--pd)">強化品: ${p.focusProducts.join('、')}</div>`:''}</div>`}).join('')}
+function editPm(i){const p=D.promos[i];pmEditIdx=i;
+  document.getElementById('pm-name').value=p.name;document.getElementById('pm-start').value=p.start;document.getElementById('pm-end').value=p.end;
+  document.getElementById('pm-products').value=(p.focusProducts||[]).join('、');
+  document.getElementById('pm-acts').innerHTML='';pmActN=0;
+  (p.actionItems||[]).forEach(item=>{addPmAct();const id=pmActN-1;document.querySelector(`[data-pa-a="${id}"]`).value=item.action;document.querySelector(`[data-pa-k="${id}"]`).value=item.kpi});
+  if(!(p.actionItems&&p.actionItems.length))addPmAct();
+  document.querySelectorAll('[data-pmcat]').forEach(e=>{e.value=(p.catActions&&p.catActions[e.dataset.pmcat])||''});
+  document.getElementById('pm-form-title').textContent='編集：'+p.name;document.getElementById('pm-save-btn').textContent='更新';
+  document.getElementById('pm-form-title').scrollIntoView({behavior:'smooth'})}
 function savePm(){const name=document.getElementById('pm-name').value.trim(),start=document.getElementById('pm-start').value,end=document.getElementById('pm-end').value;
   if(!name||!start||!end){alert('プロモ名と期間を入力');return}
   const actionItems=[];document.querySelectorAll('[data-pa-a]').forEach(e=>{const id=e.dataset.paA,k=document.querySelector(`[data-pa-k="${id}"]`),a=e.value.trim();if(a&&k)actionItems.push({action:a,kpi:k.value})});
   const catActions={};document.querySelectorAll('[data-pmcat]').forEach(e=>{const v=e.value.trim();if(v)catActions[e.dataset.pmcat]=v});
   const focusProducts=document.getElementById('pm-products').value.split(/[,、]/).map(s=>s.trim()).filter(s=>s);
-  D.promos.push({name,start,end,actionItems,catActions,focusProducts});sv(D);alert('登録！');rPm()}
+  const pm={name,start,end,actionItems,catActions,focusProducts};
+  if(pmEditIdx>=0){D.promos[pmEditIdx]=pm}else{D.promos.push(pm)}
+  sv(D);alert(pmEditIdx>=0?'更新！':'登録！');pmEditIdx=-1;rPm()}
 function delPm(i){if(confirm('削除？')){D.promos.splice(i,1);sv(D);rPm()}}
 
 // ===== REPORT =====
