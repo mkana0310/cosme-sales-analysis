@@ -302,6 +302,14 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
     <div class="fr mt8"><button class="btn bp" onclick="saveBdg()" style="flex:1">予算保存</button><div class="ts ttl" id="bdg-total" style="flex:1;text-align:right;padding-top:12px"></div></div>
   </div>
 
+  <!-- Monthly Budget -->
+  <div class="c">
+    <div class="ct">月別予算 <span class="hint">(千円・月合計)</span></div>
+    <div class="fg"><label class="fl">年</label><select class="fi" id="mbd-year" onchange="rMonthlyBdg()" style="font-size:14px"></select></div>
+    <div id="mbd-grid" style="margin-top:8px"></div>
+    <button class="btn bp mt8" onclick="saveMonthlyBdg()">月別予算を保存</button>
+  </div>
+
   <!-- KPI Targets -->
   <div class="c">
     <div class="ct">KPI目標</div>
@@ -361,8 +369,8 @@ const DOW=['日','月','火','水','木','金','土'];
 const KPI_NAMES=['AP率','SC率','3デモ率','FC紹介率','CVR','ATV','UPT'];
 const PG=['home','input','promo','set'];
 
-function ld(){const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.tyMonthly)d.tyMonthly={};return d}return genEmptyData()}
-function genEmptyData(){return{records:[],lyRecords:[],lyMonthly:{},tyMonthly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{},budgets:{},categories:[],products:[],staff:[],promos:[]}}
+function ld(){const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.tyMonthly)d.tyMonthly={};if(!d.monthlyBudgets)d.monthlyBudgets={};return d}return genEmptyData()}
+function genEmptyData(){return{records:[],lyRecords:[],lyMonthly:{},tyMonthly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{},budgets:{},monthlyBudgets:{},categories:[],products:[],staff:[],promos:[]}}
 function sv(d){localStorage.setItem(SK,JSON.stringify(d))}
 let D=ld(),cM=new Date();
 
@@ -489,15 +497,24 @@ function rBudgetPeriod(period){
   const el=document.getElementById('budget-trk');
   const mk=window._mk||mK(cM);
   if(period==='year'){
-    // Year to date
-    const year=cM.getFullYear();let ytdSales=0,ytdBdg=0,ytdTrans=0,ytdBdgTrans=0;
+    const year=cM.getFullYear();let ytdSales=0,ytdBdg=0,ytdTrans=0;const today=td();
     D.records.filter(r=>r.date.substring(0,4)===''+year).forEach(r=>{ytdSales+=r.sales||0;ytdTrans+=r.trans||0});
-    // Add TY monthly data
-    if(D.tyMonthly)Object.entries(D.tyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===''+year)ytdSales+=v.sales||0;ytdTrans+=v.trans||0});
-    if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,4)===''+year&&d<=td())ytdBdg+=v});
-    if(D.budgetTrans)Object.entries(D.budgetTrans).forEach(([d,v])=>{if(d.substring(0,4)===''+year&&d<=td())ytdBdgTrans+=v});
-    const diff=ytdSales-ytdBdg,tDiff=ytdTrans-ytdBdgTrans;
-    el.innerHTML=`<div style="display:flex;gap:16px"><div><div class="ts ttl">${year}年 売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>${ytdBdgTrans?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${tDiff>=0?'var(--ok)':'var(--ng)'}">${tDiff>=0?'+':''}${fN(tDiff)}</div><div class="ts ttl">${fN(ytdTrans)} / ${fN(ytdBdgTrans)}</div></div>`:''}</div>`;
+    if(D.tyMonthly)Object.entries(D.tyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===''+year){ytdSales+=v.sales||0;ytdTrans+=v.trans||0}});
+    // 月別予算優先、なければ日別予算
+    const hasMBdg=D.monthlyBudgets&&Object.keys(D.monthlyBudgets).some(k=>k.substring(0,4)===''+year);
+    if(hasMBdg){
+      for(let m=1;m<=12;m++){const mk=year+'-'+String(m).padStart(2,'0');if(mk>today.substring(0,7))break;const mb=D.monthlyBudgets[mk]||0;if(!mb)continue;
+        if(mk<today.substring(0,7))ytdBdg+=mb;else ytdBdg+=Math.round(mb*new Date().getDate()/new Date(year,m,0).getDate())}
+    }else{if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,4)===''+year&&d<=today)ytdBdg+=v})}
+    // LY
+    const lyYear=year-1;let lyYTD=0;
+    if(D.lyMonthly)Object.entries(D.lyMonthly).forEach(([k,v])=>{if(k.substring(0,4)===''+lyYear&&k.substring(5,7)<=today.substring(5,7))lyYTD+=v.sales||0});
+    if(D.lyRecords)D.lyRecords.filter(r=>r.date.substring(0,4)===''+lyYear&&r.date.substring(0,7)<=today.substring(0,7)).forEach(r=>{lyYTD+=r.sales||0});
+    const diff=ytdSales-ytdBdg,lyDiff=lyYTD>0?Math.round((ytdSales-lyYTD)/lyYTD*1000)/10:null;
+    el.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div><div class="ts ttl">${year}年 売上差（今日まで）</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>
+      ${lyYTD?`<div><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiff>=0?'var(--ok)':'var(--ng)'}">${lyDiff>=0?'+':''}${fP(lyDiff)}</div><div class="ts ttl">${f$k(ytdSales)} / LY${f$k(lyYTD)}</div></div>`:''}
+    </div>`;
   }else if(period==='week'){
     const{s,e}=weekRange();const today=td();
     let wBdgAll=0,wBdgToDate=0,wBdgAllT=0,wBdgToDateT=0;
@@ -505,9 +522,16 @@ function rBudgetPeriod(period){
     const wr=weekRecs();const wS=sm(wr,'sales'),wT=sm(wr,'trans');
     const diffAll=wS-wBdgAll,diffTD=wS-wBdgToDate;
     const dLeft=Math.max(0,Math.ceil((new Date(e)-new Date())/(86400000)));
-    let html=`<div style="display:flex;gap:12px;margin-bottom:8px">
+    // LY same week (364 days = 52 weeks ago, preserves weekday alignment)
+    const lyWStart=new Date(new Date(s).getTime()-364*86400000);
+    const{s:lys,e:lye}=weekRange(fmtDate(lyWStart));
+    let lyWSales=0;
+    if(D.lyRecords&&D.lyRecords.length)D.lyRecords.filter(r=>r.date>=lys&&r.date<=lye).forEach(r=>{lyWSales+=r.sales||0});
+    const lyDiffW=lyWSales>0?Math.round((wS-lyWSales)/lyWSales*1000)/10:null;
+    let html=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
       <div><div class="ts ttl">週全体</div><div style="font-size:15px;font-weight:800;color:${diffAll>=0?'var(--ok)':'var(--ng)'}">${diffAll>=0?'+':''}${f$k(diffAll)}</div><div class="ts ttl">${f$k(wS)} / ${f$k(wBdgAll)}</div></div>
       <div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">今日まで</div><div style="font-size:15px;font-weight:800;color:${diffTD>=0?'var(--ok)':'var(--ng)'}">${diffTD>=0?'+':''}${f$k(diffTD)}</div><div class="ts ttl">${f$k(wS)} / ${f$k(wBdgToDate)}</div></div>
+      ${lyDiffW!==null?`<div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiffW>=0?'var(--ok)':'var(--ng)'}">${lyDiffW>=0?'+':''}${fP(lyDiffW)}</div><div class="ts ttl">${f$k(wS)} / LY${f$k(lyWSales)}</div></div>`:''}
     </div>`;
     if(wBdgAllT>0)html+=`<div class="ts ttl">客数：実績${fN(wT)} / 今日まで予算${fN(wBdgToDateT)}</div>`;
     if(diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.abs(diffAll)/dLeft)}/日で挽回</div>`;
@@ -629,20 +653,30 @@ function rActionFx(pm,rs){
 
 function rBudgetTrk(rs,mk,k){
   const el=document.getElementById('budget-trk');
-  let bdgToDate=0,bdgMonth=0,remDays=0,trnToDate=0,trnMonth=0;const today=td();
-  if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,7)===mk){bdgMonth+=v;if(d<=today)bdgToDate+=v;if(d>today)remDays++}});
-  if(D.budgetTrans)Object.entries(D.budgetTrans).forEach(([d,v])=>{if(d.substring(0,7)===mk){trnMonth+=v;if(d<=today)trnToDate+=v}});
-  if(!bdgToDate){el.innerHTML='<div class="ts ttl">設定タブで日別予算を登録</div>';return}
-  const diff=k.sales-bdgToDate;const trnDiff=k.trans-trnToDate;
-  const pct=Math.min((k.sales/bdgMonth)*100,100);
+  let bdgToDate=0,bdgMonth=0,remDays=0,trnToDate=0;const today=td();
+  const mBdg=D.monthlyBudgets&&D.monthlyBudgets[mk];
+  if(mBdg){
+    bdgMonth=mBdg;const[y,m]=mk.split('-').map(Number);const dim2=new Date(y,m,0).getDate();
+    const dp=mk===today.substring(0,7)?new Date().getDate():dim2;
+    bdgToDate=Math.round(mBdg*dp/dim2);remDays=dim2-dp;
+  }else{
+    if(D.budgets)Object.entries(D.budgets).forEach(([d,v])=>{if(d.substring(0,7)===mk){bdgMonth+=v;if(d<=today)bdgToDate+=v;if(d>today)remDays++}});
+    if(D.budgetTrans)Object.entries(D.budgetTrans).forEach(([d,v])=>{if(d.substring(0,7)===mk&&d<=today)trnToDate+=v});
+  }
+  if(!bdgMonth){el.innerHTML='<div class="ts ttl">設定タブで予算を登録</div>';return}
+  // LY
+  const lyMK=mK(new Date(parseInt(mk.substring(0,4))-1,parseInt(mk.substring(5,7))-1,1));
+  const lyMo=D.lyMonthly&&D.lyMonthly[lyMK];
+  const lyS=lyMo?lyMo.sales:0;const lyDiff=lyS>0?Math.round((k.sales-lyS)/lyS*1000)/10:null;
+  const diff=k.sales-bdgToDate;
+  const pct=bdgMonth>0?Math.min((k.sales/bdgMonth)*100,100):0;
   let html=`<div class="pb"><div class="pf" style="width:${pct}%;background:${pct>=85?'var(--ok)':pct>=70?'var(--warn)':'var(--ng)'}"></div></div>
     <div class="pl"><span>${f$k(k.sales)}</span><span>月予算 ${f$k(bdgMonth)}</span></div>
-    <div style="display:flex;gap:16px;margin-top:8px">
-      <div><div class="ts ttl">売上差</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div></div>
-      ${trnToDate?`<div><div class="ts ttl">客数差</div><div style="font-size:15px;font-weight:800;color:${trnDiff>=0?'var(--ok)':'var(--ng)'}">${trnDiff>=0?'+':''}${fN(trnDiff)}人</div></div>`:''}
-    </div>
-    <div class="ts ttl mt8">${f$k(k.sales)}/${f$k(bdgToDate)}${trnToDate?` ・ 客数${fN(k.trans)}/${fN(trnToDate)}`:''}</div>`;
-  if(diff<0&&remDays>0)html+=`<div class="ts" style="color:var(--ng);margin-top:4px">残${remDays}日 売上+${f$k(Math.abs(diff)/remDays)}/日${trnDiff<0?' 客数+'+Math.ceil(Math.abs(trnDiff)/remDays)+'/日':''} 必要</div>`;
+    <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
+      <div><div class="ts ttl">売上差（今日まで）</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(k.sales)} / ${f$k(bdgToDate)}</div></div>
+      ${lyS?`<div><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiff>=0?'var(--ok)':'var(--ng)'}">${lyDiff>=0?'+':''}${fP(lyDiff)}</div><div class="ts ttl">${f$k(k.sales)} / LY${f$k(lyS)}</div></div>`:''}
+    </div>`;
+  if(diff<0&&remDays>0)html+=`<div class="ts" style="color:var(--ng);margin-top:4px">残${remDays}日 +${f$k(Math.abs(diff)/remDays)}/日 必要</div>`;
   el.innerHTML=html;
 }
 
@@ -861,7 +895,19 @@ function saveBdg(){if(!D.budgets)D.budgets={};if(!D.budgetTrans)D.budgetTrans={}
 function rSet(){const t=D.targets,f=D.funnel||{};document.getElementById('s-bdg-mo').value=mK(new Date());rBdg();
   document.getElementById('s-cvr').value=t.cvr||'';document.getElementById('s-atv').value=t.atv||'';document.getElementById('s-upt').value=t.upt||'';
   document.getElementById('s-fap').value=f.ap||'';document.getElementById('s-fsc').value=f.sc||'';document.getElementById('s-fd3').value=f.d3||'';document.getElementById('s-ffc').value=f.fc||'';
-  rCatSet();rStfCh()}
+  rCatSet();rStfCh();rMonthlyBdg()}
+function rMonthlyBdg(){
+  const sel=document.getElementById('mbd-year');
+  if(!sel.innerHTML){const cy=new Date().getFullYear();sel.innerHTML=`<option value="${cy}">${cy}年</option><option value="${cy+1}">${cy+1}年</option><option value="${cy-1}">${cy-1}年</option>`}
+  const year=parseInt(sel.value);
+  let html='<table class="dt"><thead><tr><th>月</th><th class="n">予算(千円)</th></tr></thead><tbody>';
+  for(let m=1;m<=12;m++){const mk=year+'-'+String(m).padStart(2,'0');const val=D.monthlyBudgets&&D.monthlyBudgets[mk]||'';
+    html+=`<tr><td style="font-size:11px;font-weight:600">${m}月</td><td class="n"><input type="number" class="bk-i" data-mbd="${mk}" value="${val}" inputmode="numeric" placeholder="-"></td></tr>`}
+  html+='</tbody></table>';document.getElementById('mbd-grid').innerHTML=html}
+function saveMonthlyBdg(){
+  if(!D.monthlyBudgets)D.monthlyBudgets={};
+  document.querySelectorAll('[data-mbd]').forEach(e=>{const v=parseInt(e.value)||0;if(v)D.monthlyBudgets[e.dataset.mbd]=v;else delete D.monthlyBudgets[e.dataset.mbd]});
+  sv(D);alert('保存！')}
 function saveTgt(){D.targets={cvr:parseFloat(document.getElementById('s-cvr').value)||0,atv:parseInt(document.getElementById('s-atv').value)||0,upt:parseFloat(document.getElementById('s-upt').value)||0};
   D.funnel={ap:parseFloat(document.getElementById('s-fap').value)||0,sc:parseFloat(document.getElementById('s-fsc').value)||0,d3:parseFloat(document.getElementById('s-fd3').value)||0,fc:parseFloat(document.getElementById('s-ffc').value)||0};
   D.catTargets={};document.querySelectorAll('[data-cattgt]').forEach(e=>{const v=parseInt(e.value)||0;if(v)D.catTargets[e.dataset.cattgt]=v});sv(D);alert('保存！')}
