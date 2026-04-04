@@ -592,11 +592,20 @@ function rBudgetPeriod(period){
       <div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">〜昨日 予算差</div><div style="font-size:15px;font-weight:800;color:${diffTD>=0?'var(--ok)':'var(--ng)'}">${diffTD>=0?'+':''}${f$k(diffTD)}</div><div class="ts ttl">${f$k(wS)} / 〜昨日予算${f$k(wBdgToDate)}</div></div>
       ${lyDiffK!==null?`<div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(wS)} / LY${f$k(lyWSales)}</div></div>`:''}
     </div>`;
+    // 週LY客数（同週lyRecords）
+    let lyWTrans=0;
+    if(D.lyRecords&&D.lyRecords.length)D.lyRecords.filter(r=>r.date>=lys&&r.date<=lye).forEach(r=>{lyWTrans+=r.trans||0});
     const atvTgtW=D.targets?.atv||0;
-    if(wBdgToDateT>0||wT>0||atvTgtW>0){
+    if(wBdgToDateT>0||wT>0||atvTgtW>0||lyWTrans>0){
       html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:8px;margin-top:4px">`;
-      if(wBdgToDateT>0){const tD=wT-wBdgToDateT;html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(wT)} / 予算${fN(wBdgToDateT)}</div></div>`}
-      else if(wT>0)html+=`<div><div class="ts ttl">客数</div><div style="font-size:13px;font-weight:700">${fN(wT)}</div></div>`;
+      // 客数差（〜昨日）＋TGT/日
+      if(wBdgToDateT>0){
+        const tD=wT-wBdgToDateT;const tAll=wT-wBdgAllT;
+        html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(wT)} / 予算${fN(wBdgToDateT)}</div>${tAll<0&&dLeft>0?`<div class="ts" style="color:var(--ng)">残${dLeft}日 +${Math.ceil(Math.abs(tAll)/dLeft)}/日</div>`:''}</div>`;
+      } else if(wT>0)html+=`<div><div class="ts ttl">客数</div><div style="font-size:13px;font-weight:700">${fN(wT)}</div></div>`;
+      // 客数LY比
+      if(lyWTrans>0&&wT>0){const lyTD=wT-lyWTrans;const lyTP=Math.round((wT-lyWTrans)/lyWTrans*1000)/10;html+=`<div><div class="ts ttl">客数 LY比</div><div style="font-size:13px;font-weight:700;color:${lyTD>=0?'var(--ok)':'var(--ng)'}">${lyTD>=0?'+':''}${fN(lyTD)} (${lyTP>=0?'+':''}${fP(lyTP)})</div><div class="ts ttl">${fN(wT)} / LY${fN(lyWTrans)}</div></div>`}
+      // ATV
       if(atvTgtW>0&&wT>0){const wAtv=Math.round(wS*1000/wT);const aD=wAtv-atvTgtW;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${wAtv.toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgtW).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
       html+=`</div>`;
     }
@@ -752,12 +761,18 @@ function rBudgetTrk(rs,mk,k){
       ${lyS?`<div><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(k.sales)} / LY${f$k(lyS)}</div></div>`:''}
     </div>`;
   if(diff<0&&remDays>0)html+=`<div class="ts" style="color:var(--ng);margin-top:4px">残${remDays}日 +${f$k(Math.ceil(Math.abs(diff)/remDays))}/日 必要</div>`;
+  // Trans LY
+  const lyT=lyMo?lyMo.trans:(D.lyRecords?D.lyRecords.filter(r=>r.date.substring(0,7)===lyMK).reduce((s,r)=>s+(r.trans||0),0):0);
   // Trans / ATV
   const atvTgt=D.targets?.atv||0;
-  if(trnToDate>0||k.trans>0||atvTgt>0){
+  if(trnToDate>0||k.trans>0||atvTgt>0||lyT>0){
     html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:8px;margin-top:8px">`;
-    if(trnToDate>0){const tD=k.trans-trnToDate;html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(k.trans)} / 予算${fN(trnToDate)}</div></div>`}
+    // 客数差（〜昨日）
+    if(trnToDate>0){const tD=k.trans-trnToDate;html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(k.trans)} / 予算${fN(trnToDate)}</div>${tD<0&&remDays>0?`<div class="ts" style="color:var(--ng)">残${remDays}日 +${Math.ceil(Math.abs(tD)/remDays)}/日</div>`:''}</div>`}
     else if(k.trans>0)html+=`<div><div class="ts ttl">客数</div><div style="font-size:13px;font-weight:700">${fN(k.trans)}</div></div>`;
+    // 客数LY比
+    if(lyT>0&&k.trans>0){const lyTD=k.trans-lyT;const lyTP=Math.round((k.trans-lyT)/lyT*1000)/10;html+=`<div><div class="ts ttl">客数 LY比</div><div style="font-size:13px;font-weight:700;color:${lyTD>=0?'var(--ok)':'var(--ng)'}">${lyTD>=0?'+':''}${fN(lyTD)} (${lyTP>=0?'+':''}${fP(lyTP)})</div><div class="ts ttl">${fN(k.trans)} / LY${fN(lyT)}</div></div>`}
+    // ATV
     if(atvTgt>0&&k.trans>0){const aD=k.atv-atvTgt;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${Math.round(k.atv).toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgt).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
     html+=`</div>`;
   }
