@@ -150,8 +150,16 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
   <!-- 3. Action Effect (collapsible) -->
   <div class="c">
     <button class="acc-hd" onclick="toggleAcc('action-fx-body','action-fx-arr')">
-      <span class="ct" style="margin:0">アクション効果</span>
-      <span id="action-fx-arr" class="acc-arr">▼</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+        <span class="ct" style="margin:0">アクション効果</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+            <button class="bsm bp ptab" data-pg="afx" onclick="setAfxPeriod('week')" style="font-size:9px;padding:3px 8px">今週</button>
+            <button class="bsm bs2 ptab" data-pg="afx" onclick="setAfxPeriod('prev')" style="font-size:9px;padding:3px 8px">前週</button>
+          </div>
+          <span id="action-fx-arr" class="acc-arr">▼</span>
+        </div>
+      </div>
     </button>
     <div id="action-fx-body" style="margin-top:8px">
       <div id="action-fx"></div>
@@ -162,7 +170,11 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
   <div class="c">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <div class="ct" style="margin:0">接客フロー</div>
-      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="kpi" onclick="setPeriod('kpi','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+      <div style="display:flex;gap:4px">
+        <button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','month')" style="font-size:9px;padding:3px 8px">月</button>
+        <button class="bsm bp ptab" data-pg="kpi" onclick="setPeriod('kpi','week')" style="font-size:9px;padding:3px 8px">今週</button>
+        <button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','prevweek')" style="font-size:9px;padding:3px 8px">前週</button>
+      </div>
     </div>
     <div id="funnel-flow"></div>
     <button class="fold" onclick="toggleAcc('kpi-detail-body','kpi-detail-arr')" style="margin-top:6px"><span id="kpi-detail-arr">▶ 詳細を見る</span></button>
@@ -491,10 +503,10 @@ function rHome(){
   const pm=curPromo();
 
   // Focus card (week KPI = 直近トレンド)
-  window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._mk=mk;
+  window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._prevWeekKPI=kpi(prevWeekRecs());window._mk=mk;
   rFocus(window._weekKPI,pm);
   // Action Effect
-  rActionFx(pm,rs);
+  rActionFx(pm,rs,'week');
   // Budget
   rBudgetTrk(rs,mk,k);
   // Store KPIs for period switching
@@ -516,10 +528,17 @@ function rHome(){
 
 // Period tab switching
 function setPeriod(section,period){
-  document.querySelectorAll(`.ptab[data-pg="${section}"]`).forEach(b=>{b.className=`bsm ${b.textContent==={year:'年',month:'月',week:'週'}[period]?'bp':'bs2'} ptab`;b.style.fontSize='9px';b.style.padding='3px 8px';b.dataset.pg=section});
+  const labelMap={year:'年',month:'月',week:'今週',prevweek:'前週'};
+  document.querySelectorAll(`.ptab[data-pg="${section}"]`).forEach(b=>{b.className=`bsm ${b.textContent===labelMap[period]?'bp':'bs2'} ptab`;b.style.fontSize='9px';b.style.padding='3px 8px';b.dataset.pg=section});
   if(section==='bdg')rBudgetPeriod(period);
   if(section==='kpi')setKpiPeriod(period);
   if(section==='cat')rCatDetail(period);
+}
+function setAfxPeriod(period){
+  document.querySelectorAll('.ptab[data-pg="afx"]').forEach(b=>{b.className=`bsm ${b.textContent===(period==='week'?'今週':'前週')?'bp':'bs2'} ptab`;b.style.fontSize='9px';b.style.padding='3px 8px'});
+  const pm=curPromo();
+  const rs=period==='week'?weekRecs():prevWeekRecs();
+  rActionFx(pm,rs,period);
 }
 
 function rBudgetPeriod(period){
@@ -620,7 +639,7 @@ function rBudgetPeriod(period){
 }
 
 function setKpiPeriod(period){
-  const k=period==='month'?window._monthKPI:window._weekKPI;
+  const k=period==='month'?window._monthKPI:period==='prevweek'?(window._prevWeekKPI||kpi(prevWeekRecs())):window._weekKPI;
   if(!k)return;
   const t=D.targets,fn=D.funnel;
   // Render funnel (always visible)
@@ -711,7 +730,7 @@ function rCatDetail(period){
     }).join('')+'</tbody></table>';
 }
 
-function rActionFx(pm,rs){
+function rActionFx(pm,rs,period){
   const el=document.getElementById('action-fx');
   if(!pm||!pm.actionItems||!pm.actionItems.length){
     el.innerHTML=`<div class="promo-bar" style="margin-bottom:6px"><div class="promo-name">${pm?pm.name:'プロモ未設定'}</div>${pm?`<div class="promo-date">${pm.start}〜${pm.end}</div>`:'<div class="ts ttl">プロモタブから登録してください</div>'}</div>`;
@@ -719,18 +738,23 @@ function rActionFx(pm,rs){
     return}
   if(!rs.length){el.innerHTML='<div class="ts ttl">データ入力後に表示</div>';return}
 
-  const thisW=kpi(weekRecs()),prevW=kpi(prevWeekRecs());
-  el.innerHTML=`<div class="promo-bar" style="margin-bottom:8px"><div class="promo-name">${pm.name}</div><div class="promo-date">${pm.start}〜${pm.end}</div></div>`
+  const isPrev=period==='prev';
+  const thisW=isPrev?kpi(prevWeekRecs()):kpi(weekRecs());
+  const prevW=isPrev?kpi(prevWeekRecs(fmtDate(new Date(new Date(weekRange().s).getTime()-7*86400000)))):kpi(prevWeekRecs());
+  const{s:ws,e:we}=isPrev?weekRange(fmtDate(new Date(new Date(weekRange().s).getTime()-7*86400000))):weekRange();
+  const weekLabel=isPrev?`前週 (${ws.substring(5).replace('-','/')}〜${we.substring(5).replace('-','/')})`:null;
+  el.innerHTML=`<div class="promo-bar" style="margin-bottom:8px"><div class="promo-name">${pm.name}</div><div style="display:flex;gap:8px;align-items:center"><div class="promo-date">${pm.start}〜${pm.end}</div>${weekLabel?`<span class="ts" style="color:var(--p);font-weight:600">${weekLabel}</span>`:''}</div></div>`
     +pm.actionItems.map(item=>{
       const cur=kpiVal(thisW,item.kpi),prev=kpiVal(prevW,item.kpi),fmt=kpiFmt(item.kpi);
       const diff=cur-prev,up=diff>0;
       const tgt=kpiTgt(item.kpi);
+      const prevLabel=isPrev?'前々週':'前週';
       return`<div class="ae" style="background:${up?'#e8f5e9':'#fff3e0'};border-left:3px solid ${up?'var(--ok)':'var(--warn)'}">
         <div class="ae-act">${item.action}</div>
         <div class="ae-kpi">
           <span class="ts ttl">${item.kpi}${tgt?' (目標'+fmt(tgt)+')':''}</span>
           <span class="ae-trend" style="color:${up?'var(--ok)':'var(--warn)'}">${fmt(cur)} ${up?'↑':'↓'}</span>
-          <span class="ts ttl">前週${fmt(prev)}</span>
+          <span class="ts ttl">${prevLabel}${fmt(prev)}</span>
         </div>
       </div>`}).join('');
 }
