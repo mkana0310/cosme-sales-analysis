@@ -623,13 +623,16 @@ function rBudgetPeriod(period){
     const{s,e}=isPrev?weekRange(baseDs):weekRange();
     const yesterday=yest();
     // 前週は土曜まで全部確定済みなので cutoff=土曜、今週は昨日
-    const cutoff=isPrev?e:yesterday;
+    // 日曜の場合: yesterday=先週土曜 < s=今日(日) → cutoff=s(日曜)を使う
+    const cutoff=isPrev?e:(yesterday>=s?yesterday:s);
+    const tdLabel=isPrev?'週計':(yesterday>=s?'〜昨日':'今日');
     let wBdgAll=0,wBdgToDate=0,wBdgAllT=0,wBdgToDateT=0;
     let wd=new Date(s);while(fmtDate(wd)<=e){const ds=fmtDate(wd);const b=D.budgets&&D.budgets[ds]||0,bt=D.budgetTrans&&D.budgetTrans[ds]||0;wBdgAll+=b;wBdgAllT+=bt;if(ds<=cutoff){wBdgToDate+=b;wBdgToDateT+=bt}wd.setDate(wd.getDate()+1)}
     const wEff=effWeek(s);const wS=wEff.sales,wT=wEff.trans;
     const isWeekly=!!(D.tyWeekly&&D.tyWeekly[s]);
     const diffAll=wS-wBdgAll,diffTD=wS-wBdgToDate;
-    const dLeft=isPrev?0:Math.max(0,Math.round((new Date(e)-new Date(yesterday))/(86400000)));
+    // dLeft: 今日含む残り日数（今日〜土曜）
+    const dLeft=isPrev?0:Math.max(0,Math.round((new Date(e)-new Date(td()))/86400000)+1);
     // LY same week (364 days ago)
     const lyWStart=new Date(new Date(s).getTime()-364*86400000);
     const{s:lys,e:lye}=weekRange(fmtDate(lyWStart));
@@ -637,7 +640,6 @@ function rBudgetPeriod(period){
     if(D.lyRecords&&D.lyRecords.length)D.lyRecords.filter(r=>r.date>=lys&&r.date<=lye).forEach(r=>{lyWSales+=r.sales||0;lyWTrans+=r.trans||0});
     const lyDiffK=lyWSales>0?wS-lyWSales:null;const lyDiffPct=lyWSales>0?Math.round((wS-lyWSales)/lyWSales*1000)/10:null;
     const weekLabel=`${s.substring(5).replace('-','/')}(日)〜${e.substring(5).replace('-','/')}(土)`;
-    const tdLabel=isPrev?'週計':'〜昨日';
     let html=`<div class="ts" style="color:var(--p);font-weight:600;margin-bottom:6px">${isPrev?'前週 ':'今週 '}${weekLabel}</div>`;
     html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
       <div><div class="ts ttl">週全体予算差${isWeekly?' <span style="color:var(--p);font-size:9px">週別入力</span>':''}</div><div style="font-size:15px;font-weight:800;color:${diffAll>=0?'var(--ok)':'var(--ng)'}">${diffAll>=0?'+':''}${f$k(diffAll)}</div><div class="ts ttl">${f$k(wS)} / 予算${f$k(wBdgAll)}</div></div>
@@ -658,6 +660,29 @@ function rBudgetPeriod(period){
       html+=`</div>`;
     }
     if(!isPrev&&diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.ceil(Math.abs(diffAll)/dLeft))}/日で挽回</div>`;
+    // 客数 日別累計比（週入力でない場合のみ）
+    if(!isPrev&&!isWeekly){
+      let cumBdg=0,cumAct=0;const tRows=[];
+      let wd2=new Date(s);while(fmtDate(wd2)<=e){
+        const ds2=fmtDate(wd2);
+        const bdgt=D.budgetTrans&&D.budgetTrans[ds2]||0;
+        const rec=D.records.find(r=>r.date===ds2);
+        const act=rec?rec.trans||0:null;
+        cumBdg+=bdgt;if(act!==null)cumAct+=act;
+        const dow2=['日','月','火','水','木','金','土'][wd2.getDay()];
+        const isF=ds2>cutoff;// 未来日
+        tRows.push({dow2,bdgt,act,cumBdg,cumAct:act!==null?cumAct:null,isF});
+        wd2.setDate(wd2.getDate()+1);
+      }
+      if(tRows.some(r=>r.bdgt>0||r.act!==null)){
+        const rowHtml=tRows.map(r=>{
+          const diff=r.cumAct!==null&&r.cumBdg>0?r.cumAct-r.cumBdg:null;
+          const dc=diff===null?'':diff>=0?'pos':'neg';
+          return`<tr style="${r.isF?'color:#bbb':''}"><td style="font-size:9px">${r.dow2}</td><td class="n">${r.bdgt||''}</td><td class="n">${r.act!==null?r.act:''}</td><td class="n">${r.cumBdg||''}</td><td class="n">${r.cumAct!==null?r.cumAct:''}</td><td class="n ${dc}">${diff!==null?(diff>=0?'+':'')+diff:''}</td></tr>`;
+        }).join('');
+        html+=`<div style="border-top:1px solid #eee;padding-top:8px;margin-top:6px"><div class="ts ttl" style="margin-bottom:4px">客数 日別累計</div><table class="dt" style="font-size:9px"><thead><tr><th></th><th class="n">予算</th><th class="n">実績</th><th class="n">累計予算</th><th class="n">累計実績</th><th class="n">差</th></tr></thead><tbody>${rowHtml}</tbody></table></div>`;
+      }
+    }
     el.innerHTML=html;
   }else{
     // Month - existing logic
@@ -876,6 +901,7 @@ function saveRec(){
   D.records.sort((a,b)=>a.date.localeCompare(b.date));sv(D);alert('登録！');iInit()}
 
 // Bulk tabs
+function rBulk(){rBulkTY()}
 function bkTab(btn,m){document.querySelectorAll('#input-bulk .tab').forEach(t=>t.classList.remove('on'));btn.classList.add('on');['bk-ty','bk-tywe','bk-tymo','bk-lymo','bk-lyd'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('bk-'+m).style.display='block';if(m==='ty')rBulkTY();if(m==='tywe')rTYWe();if(m==='tymo')rTYMo();if(m==='lymo')rLYMo();if(m==='lyd')rLYD()}
 
 function rBulkTY(){
