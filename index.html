@@ -134,7 +134,15 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
 
   <!-- 1. Today's Focus -->
   <div class="c" style="border-left:4px solid var(--p)">
-    <div class="ct">今日のフォーカス</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="ct" style="margin:0" id="focus-title">今日のフォーカス</div>
+      <div class="ms" style="margin:0;gap:4px">
+        <button onclick="chFocus(-1)" style="font-size:11px;padding:2px 8px">&lt;</button>
+        <span id="focus-date-lbl" style="font-size:11px;font-weight:600;min-width:60px;text-align:center"></span>
+        <button onclick="chFocus(1)" style="font-size:11px;padding:2px 8px">&gt;</button>
+        <button onclick="chFocus(0)" style="font-size:9px;padding:2px 6px;background:var(--p);color:#fff;border:none;border-radius:4px">今日</button>
+      </div>
+    </div>
     <div id="focus-content"></div>
   </div>
 
@@ -394,7 +402,7 @@ const PG=['home','input','promo','set'];
 function ld(){const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.tyMonthly)d.tyMonthly={};if(!d.monthlyBudgets)d.monthlyBudgets={};if(!d.tyWeekly)d.tyWeekly={};return d}return genEmptyData()}
 function genEmptyData(){return{records:[],lyRecords:[],lyMonthly:{},tyMonthly:{},tyWeekly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{},budgets:{},monthlyBudgets:{},categories:[],products:[],staff:[],promos:[]}}
 function sv(d){localStorage.setItem(SK,JSON.stringify(d))}
-let D=ld(),cM=new Date();
+let D=ld(),cM=new Date(),cFocusDate=new Date();
 
 // Nav
 function go(p){document.querySelectorAll('.pg').forEach(e=>e.classList.remove('on'));document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));document.getElementById('pg-'+p).classList.add('on');document.querySelectorAll('.ni')[PG.indexOf(p)].classList.add('on');({home:rHome,input:iInit,promo:rPm,set:rSet})[p]()}
@@ -447,17 +455,19 @@ function kpiFmt(name){return{'AP率':fP,'SC率':fP,'3デモ率':fP,'FC紹介率'
 function kpiTgt(name){return{'AP率':D.funnel.ap,'SC率':D.funnel.sc,'3デモ率':D.funnel.d3,'FC紹介率':D.funnel.fc,'CVR':D.targets.cvr,'ATV':D.targets.atv,'UPT':D.targets.upt}[name]||0}
 
 // ===== HOME =====
-function rFocus(k,pm){
+function rFocus(k,pm,ds){
   const el=document.getElementById('focus-content');
-  // Today's budget info
-  const today=td();const todayBdg=D.budgets&&D.budgets[today]||0;
-  const todayRec=D.records.find(r=>r.date===today);const todaySales=todayRec?todayRec.sales:null;
+  if(!ds)ds=td();
+  const todayBdg=D.budgets&&D.budgets[ds]||0;
+  const todayRec=D.records.find(r=>r.date===ds);const todaySales=todayRec?todayRec.sales:null;
+  const isToday=ds===td();
   let topHtml='';
+  const dayLbl=isToday?'今日':ds.substring(5).replace('-','/');
   if(todayBdg){
     if(todaySales!==null){const diff=todaySales-todayBdg;const c=diff>=0?'var(--ok)':'var(--ng)';
-      topHtml=`<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px"><div><div class="ts ttl">今日の売上</div><div class="focus-num" style="color:${c}">${f$k(todaySales)}</div></div><div style="color:${c};font-size:14px;font-weight:800">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">予算 ${f$k(todayBdg)}</div></div>`
+      topHtml=`<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px"><div><div class="ts ttl">${dayLbl}の売上</div><div class="focus-num" style="color:${c}">${f$k(todaySales)}</div></div><div style="color:${c};font-size:14px;font-weight:800">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">予算 ${f$k(todayBdg)}</div></div>`
     }else{
-      topHtml=`<div style="margin-bottom:8px"><div class="ts ttl">今日の予算</div><div class="focus-num">${f$k(todayBdg)}</div><div class="ts" style="color:var(--ng);font-size:10px">本日未入力</div></div>`
+      topHtml=`<div style="margin-bottom:8px"><div class="ts ttl">${dayLbl}の予算</div><div class="focus-num">${f$k(todayBdg)}</div><div class="ts" style="color:var(--ng);font-size:10px">${isToday?'本日未入力':'入力なし'}</div></div>`
     }
   }
   // Find worst KPI gaps
@@ -496,6 +506,16 @@ function rFunnelFlow(k){
 }
 
 function chMo(d){cM=new Date(cM.getFullYear(),cM.getMonth()+d,1);rHome()}
+function chFocus(d){
+  if(d===0){cFocusDate=new Date()}
+  else{cFocusDate=new Date(cFocusDate);cFocusDate.setDate(cFocusDate.getDate()+d)}
+  const ds=fmtDate(cFocusDate);const isToday=ds===td();
+  const dow=['日','月','火','水','木','金','土'][cFocusDate.getDay()];
+  document.getElementById('focus-date-lbl').textContent=isToday?'今日':`${cFocusDate.getMonth()+1}/${cFocusDate.getDate()}(${dow})`;
+  document.getElementById('focus-title').textContent=isToday?'今日のフォーカス':`${cFocusDate.getMonth()+1}/${cFocusDate.getDate()}(${dow}) フォーカス`;
+  const focusWK=kpi(weekRecs(ds));
+  rFocus(focusWK,curPromo(),ds);
+}
 function rHome(){
   document.getElementById('d-mo').textContent=mL(cM);
   const rs=gR(cM),mk=mK(cM);
@@ -504,7 +524,12 @@ function rHome(){
 
   // Focus card (week KPI = 直近トレンド)
   window._monthKPI=k;window._weekKPI=kpi(weekRecs());window._prevWeekKPI=kpi(prevWeekRecs());window._mk=mk;
-  rFocus(window._weekKPI,pm);
+  // フォーカス日付ラベル初期化
+  const focusDs=fmtDate(cFocusDate);const isFocusToday=focusDs===td();
+  const focusDow=['日','月','火','水','木','金','土'][cFocusDate.getDay()];
+  document.getElementById('focus-date-lbl').textContent=isFocusToday?'今日':`${cFocusDate.getMonth()+1}/${cFocusDate.getDate()}(${focusDow})`;
+  document.getElementById('focus-title').textContent=isFocusToday?'今日のフォーカス':`${cFocusDate.getMonth()+1}/${cFocusDate.getDate()}(${focusDow}) フォーカス`;
+  rFocus(isFocusToday?window._weekKPI:kpi(weekRecs(focusDs)),pm,focusDs);
   // Action Effect
   rActionFx(pm,rs,'week');
   // Budget
