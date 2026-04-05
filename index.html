@@ -178,10 +178,11 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
   <div class="c">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <div class="ct" style="margin:0">接客フロー</div>
-      <div style="display:flex;gap:4px">
+      <div style="display:flex;align-items:center;gap:4px">
         <button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','month')" style="font-size:9px;padding:3px 8px">月</button>
-        <button class="bsm bp ptab" data-pg="kpi" onclick="setPeriod('kpi','week')" style="font-size:9px;padding:3px 8px">今週</button>
-        <button class="bsm bs2 ptab" data-pg="kpi" onclick="setPeriod('kpi','prevweek')" style="font-size:9px;padding:3px 8px">前週</button>
+        <button onclick="chKpiWeek(-1)" style="width:22px;height:22px;border:none;background:#eee;border-radius:6px;cursor:pointer;font-size:13px;line-height:1;padding:0">‹</button>
+        <span id="kpi-week-lbl" style="font-size:10px;font-weight:700;min-width:34px;text-align:center;cursor:pointer;color:var(--p)" onclick="cKpiWeek=0;setPeriod('kpi','week')">今週</span>
+        <button onclick="chKpiWeek(1)" style="width:22px;height:22px;border:none;background:#eee;border-radius:6px;cursor:pointer;font-size:13px;line-height:1;padding:0">›</button>
       </div>
     </div>
     <div id="funnel-flow"></div>
@@ -354,7 +355,11 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
     <div class="ct">カテゴリ＆月間目標 <span class="hint">(千円)</span></div>
     <div class="fr"><div class="fg" style="flex:2"><input type="text" class="fi" id="nc" placeholder="カテゴリ名"></div><div class="fg" style="flex:1"><button class="btn bp" onclick="addCat()" style="height:42px">追加</button></div></div>
     <div id="cat-set"></div>
-    <button class="btn bp mt8" onclick="saveTgt()">カテゴリ目標を保存</button>
+    <button class="btn bp mt8" onclick="saveTgt()">デフォルト目標を保存</button>
+    <div class="ct mt12">月別目標 <span class="hint">(デフォルトを上書き)</span></div>
+    <div class="fg"><label class="fl">月</label><input type="month" class="fi" id="cat-tgt-mo" onchange="rCatTgtMo()"></div>
+    <div id="cat-tgt-mo-grid" style="margin-top:6px"></div>
+    <button class="btn bp mt8" onclick="saveCatMonthTgt()">月別目標を保存</button>
   </div>
 
   <!-- Staff -->
@@ -399,10 +404,10 @@ const DOW=['日','月','火','水','木','金','土'];
 const KPI_NAMES=['AP率','SC率','3デモ率','FC紹介率','CVR','ATV','UPT'];
 const PG=['home','input','promo','set'];
 
-function ld(){const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.tyMonthly)d.tyMonthly={};if(!d.monthlyBudgets)d.monthlyBudgets={};if(!d.tyWeekly)d.tyWeekly={};return d}return genEmptyData()}
-function genEmptyData(){return{records:[],lyRecords:[],lyMonthly:{},tyMonthly:{},tyWeekly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{},budgets:{},monthlyBudgets:{},categories:[],products:[],staff:[],promos:[]}}
+function ld(){const r=localStorage.getItem(SK);if(r){const d=JSON.parse(r);if(!d.tyMonthly)d.tyMonthly={};if(!d.monthlyBudgets)d.monthlyBudgets={};if(!d.tyWeekly)d.tyWeekly={};if(!d.catMonthlyTargets)d.catMonthlyTargets={};return d}return genEmptyData()}
+function genEmptyData(){return{records:[],lyRecords:[],lyMonthly:{},tyMonthly:{},tyWeekly:{},budgetTrans:{},targets:{cvr:55,atv:4500,upt:2.5},funnel:{ap:85,sc:30,d3:35,fc:20},catTargets:{},catMonthlyTargets:{},budgets:{},monthlyBudgets:{},categories:[],products:[],staff:[],promos:[]}}
 function sv(d){localStorage.setItem(SK,JSON.stringify(d))}
-let D=ld(),cM=new Date(),cFocusDate=new Date();
+let D=ld(),cM=new Date(),cFocusDate=new Date(),cKpiWeek=0;
 
 // Nav
 function go(p){document.querySelectorAll('.pg').forEach(e=>e.classList.remove('on'));document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));document.getElementById('pg-'+p).classList.add('on');document.querySelectorAll('.ni')[PG.indexOf(p)].classList.add('on');({home:rHome,input:iInit,promo:rPm,set:rSet})[p]()}
@@ -659,7 +664,12 @@ function rBudgetPeriod(period){
       if(atvTgtW>0&&wT>0){const wAtv=Math.round(wS*1000/wT);const aD=wAtv-atvTgtW;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${wAtv.toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgtW).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
       html+=`</div>`;
     }
-    if(!isPrev&&diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.ceil(Math.abs(diffAll)/dLeft))}/日で挽回</div>`;
+    if(!isPrev&&dLeft>0){
+      const extraPerDay=diffAll<0?Math.ceil(Math.abs(diffAll)/dLeft):0;
+      // 残り日別：予算 + 上乗せ = 日ごとの目標
+      let remRows='';let wd3=new Date(td());while(fmtDate(wd3)<=e){const ds3=fmtDate(wd3);const db=D.budgets&&D.budgets[ds3]||0;const goal=db+extraPerDay;const dow3=['日','月','火','水','木','金','土'][wd3.getDay()];remRows+=`<tr><td style="font-size:9px">${dow3}</td><td class="n">${db||'-'}</td><td class="n" style="${extraPerDay>0?'color:var(--ng);font-weight:700':''}">+${f$k(extraPerDay)}</td><td class="n" style="font-weight:700">${db||extraPerDay?f$k(goal):'-'}</td></tr>`;wd3.setDate(wd3.getDate()+1);}
+      if(diffAll<0)html+=`<div style="border-top:1px solid #eee;padding-top:8px;margin-top:6px"><div class="ts" style="color:var(--ng);font-weight:700;margin-bottom:4px">残${dLeft}日: 予算に +${f$k(extraPerDay)}/日 上乗せで達成</div><table class="dt" style="font-size:9px"><thead><tr><th></th><th class="n">予算</th><th class="n">上乗せ</th><th class="n">日目標</th></tr></thead><tbody>${remRows}</tbody></table></div>`;
+    }
     // 客数 日別累計比（週入力でない場合のみ）
     if(!isPrev&&!isWeekly){
       let cumBdg=0,cumAct=0;const tRows=[];
@@ -690,8 +700,33 @@ function rBudgetPeriod(period){
   }
 }
 
+function chKpiWeek(d){
+  const newW=cKpiWeek+d;
+  if(newW>0)return;// future not allowed
+  cKpiWeek=newW;
+  // Update month context if week crosses month boundary
+  const ws=new Date(new Date(weekRange().s).getTime()+cKpiWeek*7*86400000);
+  setPeriod('kpi','week');
+}
 function setKpiPeriod(period){
-  const k=period==='month'?window._monthKPI:period==='prevweek'?(window._prevWeekKPI||kpi(prevWeekRecs())):window._weekKPI;
+  let k;
+  const isMo=period==='month';
+  // Update 月 button active state
+  document.querySelectorAll('.ptab[data-pg="kpi"]').forEach(b=>{b.className=`bsm ${isMo?'bp':'bs2'} ptab`;b.style.fontSize='9px';b.style.padding='3px 8px';b.dataset.pg='kpi'});
+  if(isMo){
+    k=window._monthKPI;
+    const lbl=document.getElementById('kpi-week-lbl');if(lbl)lbl.style.color='var(--tl)';
+  }else{
+    if(cKpiWeek===0){
+      k=window._weekKPI||kpi(weekRecs());
+    }else{
+      const wsDate=new Date(new Date(weekRange().s).getTime()+cKpiWeek*7*86400000);
+      k=kpi(weekRecs(fmtDate(wsDate)));
+    }
+    const lbl=cKpiWeek===0?'今週':cKpiWeek===-1?'前週':`${-cKpiWeek}週前`;
+    const lblEl=document.getElementById('kpi-week-lbl');
+    if(lblEl){lblEl.textContent=lbl;lblEl.style.color='var(--p)'}
+  }
   if(!k)return;
   const t=D.targets,fn=D.funnel;
   // Render funnel (always visible)
@@ -746,21 +781,24 @@ function rActRates(k){
     </div>`}).join('');
 }
 
+function getCatTgt(cat,mk){
+  const mt=D.catMonthlyTargets&&D.catMonthlyTargets[mk];
+  if(mt&&mt[cat]!==undefined)return mt[cat];
+  return D.catTargets&&D.catTargets[cat]||0;
+}
 function rCatDetail(period){
   const el=document.getElementById('cat-detail');
-  let k,ct={};
+  let k,ct={},mk;
   if(period==='week'){
-    const rs=weekRecs();k=kpi(rs);
+    const rs=weekRecs();k=kpi(rs);mk=mK(cM);
     rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})});
   }else{
-    k=getMonthKPI(cM);  // tyMonthly優先
-    const mk=mK(cM);const tmo=D.tyMonthly&&D.tyMonthly[mk];
+    k=getMonthKPI(cM);mk=mK(cM);
+    const tmo=D.tyMonthly&&D.tyMonthly[mk];
     if(tmo){D.categories.forEach(c=>{if(tmo['cat-'+c])ct[c]=tmo['cat-'+c]})}
     else{const rs=gR(cM);rs.forEach(r=>{if(r.categories)Object.entries(r.categories).forEach(([c,v])=>{ct[c]=(ct[c]||0)+v})})}
   }
   const totalSales=k.sales;
-  // Monthly targets for SOB
-  const catTgts=D.catTargets||{};
   // LY data
   const lyMK=mK(new Date(cM.getFullYear()-1,cM.getMonth(),1));
   const lyMo=D.lyMonthly&&D.lyMonthly[lyMK];
@@ -770,11 +808,14 @@ function rCatDetail(period){
   if(!D.categories.length){el.innerHTML='<div class="ts ttl">設定タブでカテゴリーを登録してください</div>';return}
   if(!totalSales&&!Object.keys(ct).length){el.innerHTML='<div class="ts ttl">データなし（TY月別またはTY日別でカテゴリーを入力）</div>';return}
 
-  el.innerHTML='<table class="dt"><thead><tr><th>カテゴリ</th><th class="n">実績</th><th class="n">SOB</th><th class="n">予算</th><th class="n">差</th><th class="n">LY比</th></tr></thead><tbody>'
+  const hasMoTgt=D.catMonthlyTargets&&D.catMonthlyTargets[mk]&&Object.keys(D.catMonthlyTargets[mk]).length>0;
+  el.innerHTML=(hasMoTgt?`<div class="ts" style="color:var(--p);margin-bottom:4px">月別目標適用中 (${mk})</div>`:'')+
+    '<table class="dt"><thead><tr><th>カテゴリ</th><th class="n">実績</th><th class="n">SOB</th><th class="n">目標</th><th class="n">差</th><th class="n">LY比</th></tr></thead><tbody>'
     +D.categories.map(c=>{
       const actual=ct[c]||0;
       const sob=totalSales>0?((actual/totalSales)*100):0;
-      const catBdg=catTgts[c]?Math.round(catTgts[c]*weekRatio):0;
+      const tgtVal=getCatTgt(c,mk);
+      const catBdg=tgtVal?Math.round(tgtVal*weekRatio):0;
       const diff=catBdg?actual-catBdg:0;
       const lyVal=lyMo&&lyMo['cat-'+c]?Math.round(lyMo['cat-'+c]*weekRatio):0;
       const lyDiff=lyVal>0?((actual-lyVal)/lyVal)*100:0;
@@ -1111,7 +1152,8 @@ function saveBdg(){if(!D.budgets)D.budgets={};if(!D.budgetTrans)D.budgetTrans={}
 function rSet(){const t=D.targets,f=D.funnel||{};document.getElementById('s-bdg-mo').value=mK(new Date());rBdg();
   document.getElementById('s-cvr').value=t.cvr||'';document.getElementById('s-atv').value=t.atv||'';document.getElementById('s-upt').value=t.upt||'';
   document.getElementById('s-fap').value=f.ap||'';document.getElementById('s-fsc').value=f.sc||'';document.getElementById('s-fd3').value=f.d3||'';document.getElementById('s-ffc').value=f.fc||'';
-  rCatSet();rStfCh();rMonthlyBdg()}
+  const ctmo=document.getElementById('cat-tgt-mo');if(ctmo&&!ctmo.value)ctmo.value=mK(new Date());
+  rCatSet();rCatTgtMo();rStfCh();rMonthlyBdg()}
 function rMonthlyBdg(){
   const sel=document.getElementById('mbd-year');
   if(!sel.innerHTML){const cy=new Date().getFullYear();sel.innerHTML=`<option value="${cy}">${cy}年</option><option value="${cy+1}">${cy+1}年</option><option value="${cy-1}">${cy-1}年</option>`}
@@ -1127,9 +1169,23 @@ function saveMonthlyBdg(){
 function saveTgt(){D.targets={cvr:parseFloat(document.getElementById('s-cvr').value)||0,atv:parseInt(document.getElementById('s-atv').value)||0,upt:parseFloat(document.getElementById('s-upt').value)||0};
   D.funnel={ap:parseFloat(document.getElementById('s-fap').value)||0,sc:parseFloat(document.getElementById('s-fsc').value)||0,d3:parseFloat(document.getElementById('s-fd3').value)||0,fc:parseFloat(document.getElementById('s-ffc').value)||0};
   D.catTargets={};document.querySelectorAll('[data-cattgt]').forEach(e=>{const v=parseInt(e.value)||0;if(v)D.catTargets[e.dataset.cattgt]=v});sv(D);alert('保存！')}
-function rCatSet(){document.getElementById('cat-set').innerHTML=D.categories.map(c=>`<div class="fr" style="margin-bottom:4px;align-items:center"><span class="chip">${c}<button class="chip-x" onclick="rmCat('${c}')">×</button></span><input type="number" class="fi" data-cattgt="${c}" placeholder="目標(千円)" value="${D.catTargets&&D.catTargets[c]||''}" inputmode="numeric" style="flex:1;padding:6px;font-size:12px;margin-left:6px"></div>`).join('')}
+function rCatSet(){document.getElementById('cat-set').innerHTML=D.categories.map(c=>`<div class="fr" style="margin-bottom:4px;align-items:center"><span class="chip">${c}<button class="chip-x" onclick="rmCat('${c}')">×</button></span><input type="number" class="fi" data-cattgt="${c}" placeholder="デフォルト目標(千円)" value="${D.catTargets&&D.catTargets[c]||''}" inputmode="numeric" style="flex:1;padding:6px;font-size:12px;margin-left:6px"></div>`).join('')}
 function addCat(){const i=document.getElementById('nc'),n=i.value.trim();if(!n||D.categories.includes(n))return;D.categories.push(n);sv(D);i.value='';rCatSet()}
 function rmCat(n){D.categories=D.categories.filter(c=>c!==n);delete D.catTargets[n];sv(D);rCatSet()}
+function rCatTgtMo(){
+  const mk=document.getElementById('cat-tgt-mo').value;if(!mk)return;
+  const mt=D.catMonthlyTargets&&D.catMonthlyTargets[mk]||{};
+  document.getElementById('cat-tgt-mo-grid').innerHTML=D.categories.length?
+    D.categories.map(c=>`<div class="fr" style="margin-bottom:4px;align-items:center"><span style="flex:1;font-size:11px;font-weight:600">${c}</span><input type="number" class="fi" data-ctmo="${c}" value="${mt[c]!==undefined?mt[c]:(D.catTargets&&D.catTargets[c]||'')}" inputmode="numeric" placeholder="デフォルト${D.catTargets&&D.catTargets[c]||''}" style="flex:1;padding:6px;font-size:12px"></div>`).join('')
+    :'<div class="ts ttl">カテゴリを先に登録してください</div>';
+}
+function saveCatMonthTgt(){
+  const mk=document.getElementById('cat-tgt-mo').value;if(!mk){alert('月を選択');return}
+  if(!D.catMonthlyTargets)D.catMonthlyTargets={};
+  const obj={};document.querySelectorAll('[data-ctmo]').forEach(e=>{const v=parseInt(e.value)||0;if(v)obj[e.dataset.ctmo]=v});
+  if(Object.keys(obj).length)D.catMonthlyTargets[mk]=obj;else delete D.catMonthlyTargets[mk];
+  sv(D);alert(`${mk} の月別目標を保存！`);
+}
 function rStfCh(){document.getElementById('stf-ch').innerHTML=D.staff.map(s=>`<span class="chip">${s}<button class="chip-x" onclick="rmStf('${s}')">×</button></span>`).join('')}
 function addStf(){const i=document.getElementById('ns'),n=i.value.trim();if(!n||D.staff.includes(n))return;D.staff.push(n);sv(D);i.value='';rStfCh()}
 function rmStf(n){D.staff=D.staff.filter(s=>s!==n);sv(D);rStfCh()}
