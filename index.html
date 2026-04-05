@@ -410,7 +410,14 @@ function sv(d){localStorage.setItem(SK,JSON.stringify(d))}
 let D=ld(),cM=new Date(),cFocusDate=new Date(),cKpiWeek=0;
 
 // Nav
-function go(p){document.querySelectorAll('.pg').forEach(e=>e.classList.remove('on'));document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));document.getElementById('pg-'+p).classList.add('on');document.querySelectorAll('.ni')[PG.indexOf(p)].classList.add('on');({home:rHome,input:iInit,promo:rPm,set:rSet})[p]()}
+function go(p){
+  // Hide all pages explicitly (both class and inline style for robustness)
+  PG.forEach(id=>{const el=document.getElementById('pg-'+id);if(el){el.classList.remove('on');el.style.display='none'}});
+  document.querySelectorAll('.ni').forEach(e=>e.classList.remove('on'));
+  const pg=document.getElementById('pg-'+p);if(pg){pg.classList.add('on');pg.style.display='block'}
+  document.querySelectorAll('.ni')[PG.indexOf(p)].classList.add('on');
+  ({home:rHome,input:iInit,promo:rPm,set:rSet})[p]();
+}
 
 // Util
 function f$k(n){if(n==null||isNaN(n))return'-';const s=n<0?'-':'';return s+Math.round(Math.abs(n)).toLocaleString()+'千円'}
@@ -664,11 +671,20 @@ function rBudgetPeriod(period){
       if(atvTgtW>0&&wT>0){const wAtv=Math.round(wS*1000/wT);const aD=wAtv-atvTgtW;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${wAtv.toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgtW).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
       html+=`</div>`;
     }
-    if(!isPrev&&dLeft>0){
-      const extraPerDay=diffAll<0?Math.ceil(Math.abs(diffAll)/dLeft):0;
-      // 残り日別：予算 + 上乗せ = 日ごとの目標
-      let remRows='';let wd3=new Date(td());while(fmtDate(wd3)<=e){const ds3=fmtDate(wd3);const db=D.budgets&&D.budgets[ds3]||0;const goal=db+extraPerDay;const dow3=['日','月','火','水','木','金','土'][wd3.getDay()];remRows+=`<tr><td style="font-size:9px">${dow3}</td><td class="n">${db||'-'}</td><td class="n" style="${extraPerDay>0?'color:var(--ng);font-weight:700':''}">+${f$k(extraPerDay)}</td><td class="n" style="font-weight:700">${db||extraPerDay?f$k(goal):'-'}</td></tr>`;wd3.setDate(wd3.getDate()+1);}
-      if(diffAll<0)html+=`<div style="border-top:1px solid #eee;padding-top:8px;margin-top:6px"><div class="ts" style="color:var(--ng);font-weight:700;margin-bottom:4px">残${dLeft}日: 予算に +${f$k(extraPerDay)}/日 上乗せで達成</div><table class="dt" style="font-size:9px"><thead><tr><th></th><th class="n">予算</th><th class="n">上乗せ</th><th class="n">日目標</th></tr></thead><tbody>${remRows}</tbody></table></div>`;
+    if(!isPrev&&dLeft>0&&diffAll<0){
+      const extraPerDay=Math.ceil(Math.abs(diffAll)/dLeft);
+      // 今日から土曜までの残り日テーブル
+      let remRows='';let wd3=new Date(td());while(fmtDate(wd3)<=e){
+        const ds3=fmtDate(wd3);const db=D.budgets&&D.budgets[ds3]||0;
+        const goal=db+extraPerDay;
+        const dow3=['日','月','火','水','木','金','土'][wd3.getDay()];
+        remRows+=`<tr><td style="font-size:9px">${dow3}</td><td class="n">${db?f$k(db):'-'}</td><td class="n" style="color:var(--ng);font-weight:700">+${f$k(extraPerDay)}</td><td class="n" style="font-weight:800;color:var(--ng)">${f$k(goal)}</td></tr>`;
+        wd3.setDate(wd3.getDate()+1);
+      }
+      html+=`<div style="border-top:1px solid #eee;padding-top:8px;margin-top:6px">
+        <div class="ts" style="color:var(--ng);font-weight:700;margin-bottom:4px">残${dLeft}日 毎日 <span style="font-size:14px">+${f$k(extraPerDay)}</span> 上乗せで週予算達成</div>
+        <table class="dt" style="font-size:10px"><thead><tr><th></th><th class="n">日予算</th><th class="n">上乗せ</th><th class="n">日目標</th></tr></thead><tbody>${remRows}</tbody></table>
+      </div>`;
     }
     // 客数 日別累計比（週入力でない場合のみ）
     if(!isPrev&&!isWeekly){

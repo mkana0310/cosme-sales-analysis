@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sales-analysis-v4';
+const CACHE_NAME = 'sales-analysis-v9';
 const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
