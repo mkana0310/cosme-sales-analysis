@@ -142,7 +142,7 @@ textarea.fi{resize:vertical;min-height:50px;font-size:13px;font-family:inherit}
   <div class="c">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div class="ct" style="margin:0">予算進捗</div>
-      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','year')" style="font-size:9px;padding:3px 8px">年</button><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="bdg" onclick="setPeriod('bdg','week')" style="font-size:9px;padding:3px 8px">週</button></div>
+      <div style="display:flex;gap:4px"><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','year')" style="font-size:9px;padding:3px 8px">年</button><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','month')" style="font-size:9px;padding:3px 8px">月</button><button class="bsm bp ptab" data-pg="bdg" onclick="setPeriod('bdg','week')" style="font-size:9px;padding:3px 8px">今週</button><button class="bsm bs2 ptab" data-pg="bdg" onclick="setPeriod('bdg','prevweek')" style="font-size:9px;padding:3px 8px">前週</button></div>
     </div>
     <div id="budget-trk"></div>
   </div>
@@ -591,46 +591,48 @@ function rBudgetPeriod(period){
       <div><div class="ts ttl">${year}年 予算差（${cutLabel}）</div><div style="font-size:15px;font-weight:800;color:${diff>=0?'var(--ok)':'var(--ng)'}">${diff>=0?'+':''}${f$k(diff)}</div><div class="ts ttl">${f$k(ytdSales)} / 予算${f$k(ytdBdg)}</div></div>
       ${lyYTD?`<div><div class="ts ttl">前年比（${cutLabel}）</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(ytdSales)} / LY${f$k(lyYTD)}</div></div>`:''}
     </div>${tbl}`;
-  }else if(period==='week'){
-    const{s,e}=weekRange();const yesterday=yest();
+  }else if(period==='week'||period==='prevweek'){
+    const isPrev=period==='prevweek';
+    // 対象週の日曜日を取得
+    const baseDs=isPrev?fmtDate(new Date(new Date(weekRange().s).getTime()-7*86400000)):null;
+    const{s,e}=isPrev?weekRange(baseDs):weekRange();
+    const yesterday=yest();
+    // 前週は土曜まで全部確定済みなので cutoff=土曜、今週は昨日
+    const cutoff=isPrev?e:yesterday;
     let wBdgAll=0,wBdgToDate=0,wBdgAllT=0,wBdgToDateT=0;
-    let wd=new Date(s);while(fmtDate(wd)<=e){const ds=fmtDate(wd);const b=D.budgets&&D.budgets[ds]||0,bt=D.budgetTrans&&D.budgetTrans[ds]||0;wBdgAll+=b;wBdgAllT+=bt;if(ds<=yesterday){wBdgToDate+=b;wBdgToDateT+=bt}wd.setDate(wd.getDate()+1)}
-    // tyWeekly優先、なければ日別レコード
+    let wd=new Date(s);while(fmtDate(wd)<=e){const ds=fmtDate(wd);const b=D.budgets&&D.budgets[ds]||0,bt=D.budgetTrans&&D.budgetTrans[ds]||0;wBdgAll+=b;wBdgAllT+=bt;if(ds<=cutoff){wBdgToDate+=b;wBdgToDateT+=bt}wd.setDate(wd.getDate()+1)}
     const wEff=effWeek(s);const wS=wEff.sales,wT=wEff.trans;
     const isWeekly=!!(D.tyWeekly&&D.tyWeekly[s]);
     const diffAll=wS-wBdgAll,diffTD=wS-wBdgToDate;
-    const dLeft=Math.max(0,Math.round((new Date(e)-new Date(yesterday))/(86400000)));
+    const dLeft=isPrev?0:Math.max(0,Math.round((new Date(e)-new Date(yesterday))/(86400000)));
     // LY same week (364 days ago)
     const lyWStart=new Date(new Date(s).getTime()-364*86400000);
     const{s:lys,e:lye}=weekRange(fmtDate(lyWStart));
-    let lyWSales=0;
-    if(D.lyRecords&&D.lyRecords.length)D.lyRecords.filter(r=>r.date>=lys&&r.date<=lye).forEach(r=>{lyWSales+=r.sales||0});
+    let lyWSales=0,lyWTrans=0;
+    if(D.lyRecords&&D.lyRecords.length)D.lyRecords.filter(r=>r.date>=lys&&r.date<=lye).forEach(r=>{lyWSales+=r.sales||0;lyWTrans+=r.trans||0});
     const lyDiffK=lyWSales>0?wS-lyWSales:null;const lyDiffPct=lyWSales>0?Math.round((wS-lyWSales)/lyWSales*1000)/10:null;
-    let html=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+    const weekLabel=`${s.substring(5).replace('-','/')}(日)〜${e.substring(5).replace('-','/')}(土)`;
+    const tdLabel=isPrev?'週計':'〜昨日';
+    let html=`<div class="ts" style="color:var(--p);font-weight:600;margin-bottom:6px">${isPrev?'前週 ':'今週 '}${weekLabel}</div>`;
+    html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
       <div><div class="ts ttl">週全体予算差${isWeekly?' <span style="color:var(--p);font-size:9px">週別入力</span>':''}</div><div style="font-size:15px;font-weight:800;color:${diffAll>=0?'var(--ok)':'var(--ng)'}">${diffAll>=0?'+':''}${f$k(diffAll)}</div><div class="ts ttl">${f$k(wS)} / 予算${f$k(wBdgAll)}</div></div>
-      <div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">〜昨日 予算差</div><div style="font-size:15px;font-weight:800;color:${diffTD>=0?'var(--ok)':'var(--ng)'}">${diffTD>=0?'+':''}${f$k(diffTD)}</div><div class="ts ttl">${f$k(wS)} / 〜昨日予算${f$k(wBdgToDate)}</div></div>
+      <div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">${tdLabel} 予算差</div><div style="font-size:15px;font-weight:800;color:${diffTD>=0?'var(--ok)':'var(--ng)'}">${diffTD>=0?'+':''}${f$k(diffTD)}</div><div class="ts ttl">${f$k(wS)} / ${tdLabel}予算${f$k(wBdgToDate)}</div></div>
       ${lyDiffK!==null?`<div style="border-left:1px solid #eee;padding-left:12px"><div class="ts ttl">前年比</div><div style="font-size:15px;font-weight:800;color:${lyDiffK>=0?'var(--ok)':'var(--ng)'}">${lyDiffK>=0?'+':''}${f$k(lyDiffK)} (${lyDiffPct>=0?'+':''}${fP(lyDiffPct)})</div><div class="ts ttl">${f$k(wS)} / LY${f$k(lyWSales)}</div></div>`:''}
     </div>`;
-    // 週LY客数（同週lyRecords）
-    let lyWTrans=0;
-    if(D.lyRecords&&D.lyRecords.length)D.lyRecords.filter(r=>r.date>=lys&&r.date<=lye).forEach(r=>{lyWTrans+=r.trans||0});
     const atvTgtW=D.targets?.atv||0;
     if(wBdgToDateT>0||wT>0||atvTgtW>0||lyWTrans>0){
       html+=`<div style="display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:8px;margin-top:4px">`;
-      // 客数差（〜昨日）＋TGT比＋TGT/日
       if(wBdgToDateT>0){
         const tD=wT-wBdgToDateT;const tAll=wT-wBdgAllT;
         const tgtPct=wBdgAllT>0?Math.round(wT/wBdgAllT*1000)/10:null;
         const tgtColor=tgtPct>=100?'var(--ok)':tgtPct>=85?'var(--warn)':'var(--ng)';
-        html+=`<div><div class="ts ttl">客数差（〜昨日）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(wT)} / 予算${fN(wBdgToDateT)}</div>${tgtPct!==null?`<div class="ts" style="color:${tgtColor}">TGT比 ${fP(tgtPct)}</div>`:''} ${tAll<0&&dLeft>0?`<div class="ts" style="color:var(--ng)">残${dLeft}日 +${Math.ceil(Math.abs(tAll)/dLeft)}/日</div>`:''}</div>`;
+        html+=`<div><div class="ts ttl">客数差（${tdLabel}）</div><div style="font-size:13px;font-weight:700;color:${tD>=0?'var(--ok)':'var(--ng)'}">${tD>=0?'+':''}${fN(tD)}</div><div class="ts ttl">${fN(wT)} / 予算${fN(wBdgToDateT)}</div>${tgtPct!==null?`<div class="ts" style="color:${tgtColor}">TGT比 ${fP(tgtPct)}</div>`:''} ${!isPrev&&tAll<0&&dLeft>0?`<div class="ts" style="color:var(--ng)">残${dLeft}日 +${Math.ceil(Math.abs(tAll)/dLeft)}/日</div>`:''}</div>`;
       } else if(wT>0)html+=`<div><div class="ts ttl">客数</div><div style="font-size:13px;font-weight:700">${fN(wT)}</div></div>`;
-      // 客数LY比
       if(lyWTrans>0&&wT>0){const lyTD=wT-lyWTrans;const lyTP=Math.round((wT-lyWTrans)/lyWTrans*1000)/10;html+=`<div><div class="ts ttl">客数 LY比</div><div style="font-size:13px;font-weight:700;color:${lyTD>=0?'var(--ok)':'var(--ng)'}">${lyTD>=0?'+':''}${fN(lyTD)} (${lyTP>=0?'+':''}${fP(lyTP)})</div><div class="ts ttl">${fN(wT)} / LY${fN(lyWTrans)}</div></div>`}
-      // ATV
       if(atvTgtW>0&&wT>0){const wAtv=Math.round(wS*1000/wT);const aD=wAtv-atvTgtW;html+=`<div><div class="ts ttl">ATV</div><div style="font-size:13px;font-weight:700;color:${aD>=0?'var(--ok)':'var(--ng)'}">¥${wAtv.toLocaleString()}</div><div class="ts ttl">目標¥${Math.round(atvTgtW).toLocaleString()} (${aD>=0?'+':''}¥${Math.round(aD).toLocaleString()})</div></div>`}
       html+=`</div>`;
     }
-    if(diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.ceil(Math.abs(diffAll)/dLeft))}/日で挽回</div>`;
+    if(!isPrev&&diffAll<0&&dLeft>0)html+=`<div class="ts mt8" style="color:var(--ng)">残${dLeft}日 +${f$k(Math.ceil(Math.abs(diffAll)/dLeft))}/日で挽回</div>`;
     el.innerHTML=html;
   }else{
     // Month - existing logic
