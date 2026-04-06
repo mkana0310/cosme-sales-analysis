@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sales-analysis-v9';
+const CACHE_NAME = 'sales-analysis-v10';
 const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -16,7 +16,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request)
+      .then(r => {
+        const rc = r.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, rc));
+        return r;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
