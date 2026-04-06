@@ -1209,7 +1209,19 @@ function expD(){const b=new Blob([JSON.stringify(D,null,2)],{type:'application/j
 function impD(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.records){D=d;sv(D);alert('完了');go('home')}else alert('無効')}catch{alert('失敗')}};r.readAsText(f);e.target.value=''}
 function clrD(){if(confirm('全データ削除？')){localStorage.removeItem(SK);D=ld();go('set');alert('削除完了')}}
 document.addEventListener('DOMContentLoaded',()=>rHome());
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator){
+  const APP_VER='10';
+  if(localStorage.getItem('_swv')!==APP_VER){
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      Promise.all(regs.map(r=>r.unregister())).then(()=>{
+        localStorage.setItem('_swv',APP_VER);
+        location.reload(true);
+      });
+    });
+  } else {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+}
 </script>
 </body>
 </html>
