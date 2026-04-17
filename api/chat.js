@@ -58,14 +58,22 @@ ${monthlyPolicy || '（未設定）'}
   if (recentResults?.length) {
     prompt += '\n## 直近の実績データ\n'
     for (const r of recentResults) {
-      const totalSales = ((r.new_sales || 0) + (r.existing_sales || 0)).toLocaleString()
-      const totalPurchases = (r.new_purchases || 0) + (r.existing_purchases || 0)
+      const sv = r.store_visitors || 0
+      const tc = r.total_customers || 0
+      const ts = r.total_sales || 0
+      const bs = r.budget_sales || 0
+      const ls = r.lastyear_sales || 0
+      const nms = r.nonmember_sales || 0
+      const nmc = r.nonmember_customers || 0
       prompt += `
 ### ${r.year}年${r.month}月 第${r.week}週（${r.granularity === 'weekly' ? '週次' : '月次'}）
-- 入店数: ${r.store_visitors ?? '-'}人 / AP数: ${r.ap_count ?? '-'} / SC数: ${r.sc_count ?? '-'} / デモ数: ${r.demo_count ?? '-'}
-- 新規: ${r.new_purchases ?? '-'}件 ¥${(r.new_sales || 0).toLocaleString()}
-- 既存: ${r.existing_purchases ?? '-'}件 ¥${(r.existing_sales || 0).toLocaleString()}
-- 合計: ${totalPurchases}件 ¥${totalSales}${r.memo ? `\n- メモ: ${r.memo}` : ''}
+- 入店数: ${sv}人 / AP数: ${r.ap_count ?? '-'} / SC数: ${r.sc_count ?? '-'} / ３デモ数: ${r.demo3_count ?? '-'}
+- CVR: ${sv ? ((tc/sv)*100).toFixed(1) : '-'}% / AP率: ${sv ? ((r.ap_count||0)/sv*100).toFixed(1) : '-'}% / SC率: ${sv ? ((r.sc_count||0)/sv*100).toFixed(1) : '-'}%
+- 売上: ¥${ts.toLocaleString()} / 客数: ${tc}人
+- 予算: ¥${bs.toLocaleString()} → 達成率: ${bs ? ((ts/bs)*100).toFixed(1) : '-'}%
+- 前年: ¥${ls.toLocaleString()} → 前年比: ${ls ? ((ts/ls)*100).toFixed(1) : '-'}%
+${nmc ? `- 新規・非会員: ¥${nms.toLocaleString()} / ${nmc}人 / 単価: ¥${Math.round(nms/nmc).toLocaleString()}` : ''}
+${r.memo ? `- メモ: ${r.memo}` : ''}
 `
     }
   }
