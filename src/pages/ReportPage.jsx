@@ -1,6 +1,47 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentPeriod } from '../lib/supabase.js'
 
+async function exportCSV() {
+  const { data } = await supabase.from('results').select('*')
+    .order('year', { ascending: true })
+    .order('month', { ascending: true })
+    .order('week', { ascending: true })
+
+  if (!data?.length) { alert('データがありません'); return }
+
+  const headers = [
+    '種別', '年', '月', '週', '開始日', '終了日', '進捗確認日',
+    '入店数', 'AP数', 'SC数', '３デモ数',
+    '売上合計', '客数', '予算', '前年売上', '予算客数', '前年客数',
+    '新規非会員売上', '新規非会員客数', 'メモ'
+  ]
+
+  const rows = data.map(r => [
+    r.granularity === 'weekly' ? '週次' : '月次',
+    r.year, r.month, r.week,
+    r.start_date ?? '', r.end_date ?? '', r.snapshot_date ?? '',
+    r.store_visitors ?? '', r.ap_count ?? '', r.sc_count ?? '', r.demo3_count ?? '',
+    r.total_sales ?? '', r.total_customers ?? '',
+    r.budget_sales ?? '', r.lastyear_sales ?? '',
+    r.budget_customers ?? '', r.lastyear_customers ?? '',
+    r.nonmember_sales ?? '', r.nonmember_customers ?? '',
+    r.memo ?? ''
+  ])
+
+  const csv = [headers, ...rows].map(row =>
+    row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  ).join('\n')
+
+  const bom = '\uFEFF'
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `売上データ_${new Date().toLocaleDateString('ja-JP').replace(/\//g, '')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function ReportPage() {
   const { year, month, week } = getCurrentPeriod()
   const [reports, setReports] = useState([])
@@ -141,6 +182,17 @@ export default function ReportPage() {
               </div>
             </>
           )}
+        </div>
+
+        {/* CSVエクスポート */}
+        <div className="card">
+          <div className="card-title">📊 データエクスポート</div>
+          <p style={{ fontSize: 12, color: 'var(--tl)', marginBottom: 10 }}>
+            CSVでダウンロードしてClaudeのチャットに貼り付けて分析できます
+          </p>
+          <button className="btn btn-o btn-full" onClick={exportCSV}>
+            ⬇️ CSVダウンロード
+          </button>
         </div>
 
         {/* 過去の週報 */}

@@ -6,6 +6,7 @@ const { year: CY, month: CM, week: CW } = getCurrentPeriod()
 const EMPTY = {
   year: CY, month: CM, week: CW,
   granularity: 'weekly',
+  start_date: '', end_date: '', snapshot_date: '',
   store_visitors: '', ap_count: '', sc_count: '', demo3_count: '',
   total_sales: '', total_customers: '',
   budget_sales: '', lastyear_sales: '',
@@ -25,7 +26,6 @@ function calc(form) {
   const ls = Number(form.lastyear_sales) || 0
   const nms = Number(form.nonmember_sales) || 0
   const nmc = Number(form.nonmember_customers) || 0
-
   return {
     cvr:      sv ? ((tc / sv) * 100).toFixed(1) + '%' : '-',
     apRate:   sv ? ((ap / sv) * 100).toFixed(1) + '%' : '-',
@@ -34,9 +34,20 @@ function calc(form) {
     achievement: bs ? ((ts / bs) * 100).toFixed(1) + '%' : '-',
     yoy:      ls ? ((ts / ls) * 100).toFixed(1) + '%' : '-',
     nonmemberUnitPrice: nmc ? Math.round(nms / nmc).toLocaleString() + '円' : '-',
-    existingSales:    ts && nms ? (ts - nms).toLocaleString() + '円' : '-',
-    existingCustomers: tc && nmc ? (tc - nmc) + '人' : '-',
+    existingSales:     (ts && nms !== '') ? (ts - nms).toLocaleString() + '円' : '-',
+    existingCustomers: (tc && nmc !== '') ? (tc - nmc) + '人' : '-',
   }
+}
+
+function formatDateRange(start, end) {
+  if (!start && !end) return ''
+  const fmt = d => {
+    const dt = new Date(d)
+    return `${dt.getMonth() + 1}/${dt.getDate()}`
+  }
+  if (start && end) return `${fmt(start)}〜${fmt(end)}`
+  if (start) return `${fmt(start)}〜`
+  return `〜${fmt(end)}`
 }
 
 export default function DataInputPage() {
@@ -49,8 +60,7 @@ export default function DataInputPage() {
 
   async function checkExisting() {
     const { data } = await supabase
-      .from('results')
-      .select('*')
+      .from('results').select('*')
       .eq('year', form.year).eq('month', form.month)
       .eq('week', form.week).eq('granularity', form.granularity)
       .limit(1)
@@ -59,18 +69,14 @@ export default function DataInputPage() {
       const d = data[0]
       setForm(f => ({
         ...f,
-        store_visitors: d.store_visitors ?? '',
-        ap_count: d.ap_count ?? '',
-        sc_count: d.sc_count ?? '',
-        demo3_count: d.demo3_count ?? '',
-        total_sales: d.total_sales ?? '',
-        total_customers: d.total_customers ?? '',
-        budget_sales: d.budget_sales ?? '',
-        lastyear_sales: d.lastyear_sales ?? '',
-        budget_customers: d.budget_customers ?? '',
-        lastyear_customers: d.lastyear_customers ?? '',
-        nonmember_sales: d.nonmember_sales ?? '',
-        nonmember_customers: d.nonmember_customers ?? '',
+        start_date: d.start_date ?? '', end_date: d.end_date ?? '',
+        snapshot_date: d.snapshot_date ?? '',
+        store_visitors: d.store_visitors ?? '', ap_count: d.ap_count ?? '',
+        sc_count: d.sc_count ?? '', demo3_count: d.demo3_count ?? '',
+        total_sales: d.total_sales ?? '', total_customers: d.total_customers ?? '',
+        budget_sales: d.budget_sales ?? '', lastyear_sales: d.lastyear_sales ?? '',
+        budget_customers: d.budget_customers ?? '', lastyear_customers: d.lastyear_customers ?? '',
+        nonmember_sales: d.nonmember_sales ?? '', nonmember_customers: d.nonmember_customers ?? '',
         memo: d.memo ?? '',
       }))
     } else {
@@ -87,18 +93,15 @@ export default function DataInputPage() {
     const payload = {
       year: form.year, month: form.month, week: form.week,
       granularity: form.granularity,
-      store_visitors: num(form.store_visitors),
-      ap_count: num(form.ap_count),
-      sc_count: num(form.sc_count),
-      demo3_count: num(form.demo3_count),
-      total_sales: num(form.total_sales),
-      total_customers: num(form.total_customers),
-      budget_sales: num(form.budget_sales),
-      lastyear_sales: num(form.lastyear_sales),
-      budget_customers: num(form.budget_customers),
-      lastyear_customers: num(form.lastyear_customers),
-      nonmember_sales: num(form.nonmember_sales),
-      nonmember_customers: num(form.nonmember_customers),
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+      snapshot_date: form.snapshot_date || null,
+      store_visitors: num(form.store_visitors), ap_count: num(form.ap_count),
+      sc_count: num(form.sc_count), demo3_count: num(form.demo3_count),
+      total_sales: num(form.total_sales), total_customers: num(form.total_customers),
+      budget_sales: num(form.budget_sales), lastyear_sales: num(form.lastyear_sales),
+      budget_customers: num(form.budget_customers), lastyear_customers: num(form.lastyear_customers),
+      nonmember_sales: num(form.nonmember_sales), nonmember_customers: num(form.nonmember_customers),
       memo: form.memo || null,
     }
     let err
@@ -119,12 +122,15 @@ export default function DataInputPage() {
 
   const isWeekly = form.granularity === 'weekly'
   const c = calc(form)
+  const dateLabel = isWeekly
+    ? formatDateRange(form.start_date, form.end_date)
+    : form.snapshot_date ? `${new Date(form.snapshot_date).getMonth()+1}/${new Date(form.snapshot_date).getDate()}時点` : ''
 
   return (
     <div>
       <div className="hd">
         <h1>✏️ データ入力</h1>
-        <p>実績を入力してください</p>
+        <p>{dateLabel || '実績を入力してください'}</p>
       </div>
 
       <div className="body">
@@ -134,7 +140,6 @@ export default function DataInputPage() {
           </div>
         )}
 
-        {/* 粒度選択 */}
         <div className="toggle">
           <button className={`tgl-btn${isWeekly ? ' on' : ''}`} onClick={() => set('granularity', 'weekly')}>週次</button>
           <button className={`tgl-btn${!isWeekly ? ' on' : ''}`} onClick={() => set('granularity', 'monthly')}>月次</button>
@@ -167,6 +172,26 @@ export default function DataInputPage() {
               </div>
             )}
           </div>
+
+          {/* 日付 */}
+          {isWeekly ? (
+            <div className="row" style={{ marginTop: 4 }}>
+              <div className="fg">
+                <label>開始日</label>
+                <input type="date" className="fi" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+              </div>
+              <div className="fg">
+                <label>終了日</label>
+                <input type="date" className="fi" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+              </div>
+            </div>
+          ) : (
+            <div className="fg" style={{ marginTop: 4 }}>
+              <label>進捗確認日</label>
+              <input type="date" className="fi" value={form.snapshot_date} onChange={e => set('snapshot_date', e.target.value)} />
+            </div>
+          )}
+
           {existingId && <div style={{ marginTop: 8 }}><span className="badge">既存データあり（上書き更新）</span></div>}
         </div>
 
@@ -181,8 +206,6 @@ export default function DataInputPage() {
             <NumField label="SC数" value={form.sc_count} onChange={v => set('sc_count', v)} />
             <NumField label="３デモ数" value={form.demo3_count} onChange={v => set('demo3_count', v)} />
           </div>
-
-          {/* 自動計算 */}
           {Number(form.store_visitors) > 0 && (
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <RateBox label="CVR" value={c.cvr} />
@@ -208,9 +231,7 @@ export default function DataInputPage() {
             <NumField label="予算客数" value={form.budget_customers} onChange={v => set('budget_customers', v)} />
             <NumField label="前年客数" value={form.lastyear_customers} onChange={v => set('lastyear_customers', v)} />
           </div>
-
-          {/* 自動計算 */}
-          {(Number(form.total_sales) > 0 || Number(form.budget_sales) > 0) && (
+          {(Number(form.budget_sales) > 0 || Number(form.lastyear_sales) > 0) && (
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {form.budget_sales && <RateBox label="達成率" value={c.achievement} highlight />}
               {form.lastyear_sales && <RateBox label="前年比" value={c.yoy} highlight />}
@@ -226,8 +247,6 @@ export default function DataInputPage() {
             <NumField label="売上（円）" value={form.nonmember_sales} onChange={v => set('nonmember_sales', v)} />
             <NumField label="客数" value={form.nonmember_customers} onChange={v => set('nonmember_customers', v)} />
           </div>
-
-          {/* 自動計算 */}
           {Number(form.nonmember_customers) > 0 && (
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <RateBox label="単価" value={c.nonmemberUnitPrice} />
@@ -243,9 +262,7 @@ export default function DataInputPage() {
             <div className="card-title">📝 週次メモ</div>
             <div className="fg" style={{ marginBottom: 0 }}>
               <textarea
-                className="fi"
-                rows={4}
-                value={form.memo}
+                className="fi" rows={4} value={form.memo}
                 onChange={e => set('memo', e.target.value)}
                 placeholder="今週の気づき、来週への引き継ぎなど..."
               />
@@ -265,25 +282,15 @@ function NumField({ label, value, onChange }) {
   return (
     <div className="fg">
       <label>{label}</label>
-      <input
-        type="number"
-        className="fi"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        min="0"
-        inputMode="numeric"
-        pattern="[0-9]*"
-      />
+      <input type="number" className="fi" value={value}
+        onChange={e => onChange(e.target.value)} min="0" inputMode="numeric" pattern="[0-9]*" />
     </div>
   )
 }
 
 function RateBox({ label, value, highlight }) {
   return (
-    <div style={{
-      background: highlight ? 'var(--pl)' : 'var(--bg)',
-      borderRadius: 8, padding: '8px 10px'
-    }}>
+    <div style={{ background: highlight ? 'var(--pl)' : 'var(--bg)', borderRadius: 8, padding: '8px 10px' }}>
       <div style={{ fontSize: 10, color: 'var(--tl)' }}>{label}</div>
       <div style={{ fontSize: 16, fontWeight: 800, color: highlight ? 'var(--p)' : 'var(--t)', marginTop: 2 }}>
         {value}
