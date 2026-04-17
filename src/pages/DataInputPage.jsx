@@ -206,12 +206,39 @@ export default function DataInputPage() {
             <NumField label="SC数" value={form.sc_count} onChange={v => set('sc_count', v)} />
             <NumField label="３デモ数" value={form.demo3_count} onChange={v => set('demo3_count', v)} />
           </div>
-          {Number(form.store_visitors) > 0 && (
-            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <RateBox label="CVR" value={c.cvr} />
-              <RateBox label="AP率" value={c.apRate} />
-              <RateBox label="SC率" value={c.scRate} />
-              <RateBox label="３デモ率" value={c.d3Rate} />
+
+          {/* 目標と実績比較 */}
+          {(Number(form.store_visitors) > 0 || Number(form.budget_customers) > 0) && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tl)', marginBottom: 6 }}>目標 vs 実績</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {Number(form.budget_customers) > 0 && (
+                  <RateBox label="入店数目標（客数予算÷50%）"
+                    value={`目標${Math.round(Number(form.budget_customers)/0.50)}人 / 実績${form.store_visitors || '-'}人`}
+                    highlight={Number(form.store_visitors) >= Math.round(Number(form.budget_customers)/0.50)}
+                  />
+                )}
+                <RateBox label="CVR（目標55%）"
+                  value={c.cvr}
+                  highlight={Number(form.total_customers) / Number(form.store_visitors) >= 0.55}
+                />
+                {Number(form.store_visitors) > 0 && (
+                  <>
+                    <RateBox label="AP（目標85%）"
+                      value={`実績${form.ap_count || '-'}件 / 目標${Math.round(Number(form.store_visitors)*0.85)}件`}
+                      highlight={Number(form.ap_count) >= Math.round(Number(form.store_visitors)*0.85)}
+                    />
+                    <RateBox label="SC（目標30%）"
+                      value={`実績${form.sc_count || '-'}件 / 目標${Math.round(Number(form.ap_count||0)*0.30)}件`}
+                      highlight={Number(form.sc_count) >= Math.round(Number(form.ap_count||0)*0.30)}
+                    />
+                    <RateBox label="３デモ（目標30%）"
+                      value={`実績${form.demo3_count || '-'}件 / 目標${Math.round(Number(form.ap_count||0)*0.30)}件`}
+                      highlight={Number(form.demo3_count) >= Math.round(Number(form.ap_count||0)*0.30)}
+                    />
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

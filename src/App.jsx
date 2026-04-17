@@ -2,16 +2,16 @@ import { useState } from 'react'
 import BottomNav from './components/BottomNav.jsx'
 import AxisPage from './pages/AxisPage.jsx'
 import DataInputPage from './pages/DataInputPage.jsx'
-import ChatPage from './pages/ChatPage.jsx'
+import DataViewPage from './pages/DataViewPage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
 
 export default function App() {
   const [page, setPage] = useState('axis')
 
   const pages = {
-    axis: <AxisPage />,
-    input: <DataInputPage />,
-    chat: <ChatPage />,
+    axis:   <AxisPage />,
+    input:  <DataInputPage />,
+    view:   <DataViewPage />,
     report: <ReportPage />,
   }
 
