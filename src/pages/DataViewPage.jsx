@@ -98,11 +98,12 @@ function MonthlyView({ data, year, month }) {
   const weekly = data.filter(r => r.granularity === 'weekly')
   const monthly = data.find(r => r.granularity === 'monthly')
 
-  // 週次の集計
-  const sumVisitors = weekly.reduce((s, r) => s + (r.store_visitors || 0), 0)
-  const sumAP = weekly.reduce((s, r) => s + (r.ap_count || 0), 0)
-  const sumSC = weekly.reduce((s, r) => s + (r.sc_count || 0), 0)
-  const sumD3 = weekly.reduce((s, r) => s + (r.demo3_count || 0), 0)
+  // 集計（週次があれば合計、なければ月次データをそのまま使う）
+  const hasWeekly = weekly.length > 0
+  const sumVisitors = hasWeekly ? weekly.reduce((s, r) => s + (r.store_visitors || 0), 0) : (monthly?.store_visitors || 0)
+  const sumAP = hasWeekly ? weekly.reduce((s, r) => s + (r.ap_count || 0), 0) : (monthly?.ap_count || 0)
+  const sumSC = hasWeekly ? weekly.reduce((s, r) => s + (r.sc_count || 0), 0) : (monthly?.sc_count || 0)
+  const sumD3 = hasWeekly ? weekly.reduce((s, r) => s + (r.demo3_count || 0), 0) : (monthly?.demo3_count || 0)
 
   // 売上は月次があればそちら、なければ週次の合計
   const base = monthly || (weekly.length ? weekly[weekly.length - 1] : null)
