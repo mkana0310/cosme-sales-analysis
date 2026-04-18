@@ -120,8 +120,12 @@ function MonthlyView({ data, year, month }) {
         <div className="card">
           <div className="card-title">💰 売上サマリー{snapshotDate ? `（${new Date(snapshotDate).getMonth()+1}/${new Date(snapshotDate).getDate()}時点）` : ''}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <BigStat label="売上" value={`¥${fmt(totalSales)}`} />
-            <BigStat label="客数" value={`${fmt(totalCustomers)}人`} />
+            <BigStat label="売上実績" value={`¥${fmt(totalSales)}`} />
+            <BigStat label="客数実績" value={`${fmt(totalCustomers)}人`} />
+            {budgetSales && <BigStat label="予算" value={`¥${fmt(budgetSales)}`} />}
+            {lastyearSales && <BigStat label="前年実績" value={`¥${fmt(lastyearSales)}`} />}
+            {base?.budget_customers && <BigStat label="予算客数" value={`${fmt(base.budget_customers)}人`} />}
+            {base?.lastyear_customers && <BigStat label="前年客数" value={`${fmt(base.lastyear_customers)}人`} />}
             {budgetSales && <BigStat label="達成率" value={pct(totalSales, budgetSales)} highlight />}
             {lastyearSales && <BigStat label="前年比" value={pct(totalSales, lastyearSales)} highlight />}
           </div>
@@ -136,15 +140,15 @@ function MonthlyView({ data, year, month }) {
       {/* 行動指標サマリー */}
       {sumVisitors > 0 && (
         <div className="card">
-          <div className="card-title">👥 行動指標（週次累計）</div>
+          <div className="card-title">👥 行動指標{useMonthly ? '' : '（週次累計）'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {base?.budget_customers && (
               <TargetStat label="入店数目標" actual={sumVisitors} target={Math.round(base.budget_customers / 0.50)} unit="人" />
             )}
             <BigStat label="CVR（目標55%）" value={pct(totalCustomers, sumVisitors)} highlight={totalCustomers / sumVisitors >= 0.55} />
-            <TargetStat label="AP（目標85%）" actual={sumAP} target={Math.round(sumVisitors * 0.85)} />
-            <TargetStat label="SC（目標30%）" actual={sumSC} target={Math.round(sumAP * 0.30)} />
-            <TargetStat label="３デモ（目標30%）" actual={sumD3} target={Math.round(sumAP * 0.30)} />
+            <TargetStat label={`AP率 ${pct(sumAP, sumVisitors)}（目標85%）`} actual={sumAP} target={Math.round(sumVisitors * 0.85)} />
+            <TargetStat label={`SC率 ${pct(sumSC, sumAP)}（目標30%）`} actual={sumSC} target={Math.round(sumAP * 0.30)} />
+            <TargetStat label={`３デモ率 ${pct(sumD3, sumAP)}（目標30%）`} actual={sumD3} target={Math.round(sumAP * 0.30)} />
           </div>
         </div>
       )}
@@ -195,9 +199,9 @@ function WeekCard({ r }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
             {visitorTarget && <TargetStat label="入店数目標" actual={r.store_visitors} target={visitorTarget} unit="人" />}
             <BigStat label="CVR（目標55%）" value={pct(r.total_customers, r.store_visitors)} highlight={r.total_customers / r.store_visitors >= 0.55} />
-            <TargetStat label="AP（目標85%）" actual={r.ap_count} target={apTarget} />
-            <TargetStat label="SC（目標30%）" actual={r.sc_count} target={scTarget} />
-            <TargetStat label="３デモ（目標30%）" actual={r.demo3_count} target={d3Target} />
+            <TargetStat label={`AP率 ${pct(r.ap_count, r.store_visitors)}（目標85%）`} actual={r.ap_count} target={apTarget} />
+            <TargetStat label={`SC率 ${pct(r.sc_count, r.ap_count)}（目標30%）`} actual={r.sc_count} target={scTarget} />
+            <TargetStat label={`３デモ率 ${pct(r.demo3_count, r.ap_count)}（目標30%）`} actual={r.demo3_count} target={d3Target} />
           </div>
         </>
       )}
