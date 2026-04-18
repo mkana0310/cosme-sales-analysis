@@ -104,9 +104,19 @@ export default function DataInputPage() {
       nonmember_sales: num(form.nonmember_sales), nonmember_customers: num(form.nonmember_customers),
       memo: form.memo || null,
     }
+    // 保存直前に再度チェックして重複を防ぐ
+    let id = existingId
+    if (!id) {
+      const { data: check } = await supabase.from('results').select('id')
+        .eq('year', form.year).eq('month', form.month)
+        .eq('week', form.week).eq('granularity', form.granularity)
+        .order('created_at', { ascending: false }).limit(1)
+      id = check?.[0]?.id ?? null
+    }
+
     let err
-    if (existingId) {
-      ;({ error: err } = await supabase.from('results').update(payload).eq('id', existingId))
+    if (id) {
+      ;({ error: err } = await supabase.from('results').update(payload).eq('id', id))
     } else {
       ;({ error: err } = await supabase.from('results').insert(payload))
     }

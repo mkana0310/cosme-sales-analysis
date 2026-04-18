@@ -26,7 +26,7 @@ export default function DataViewPage() {
     if (mode === 'weekly') {
       query = query.eq('week', viewWeek).eq('granularity', 'weekly')
     } else {
-      query = query.order('granularity', { ascending: false }).order('week', { ascending: true })
+      query = query.order('granularity', { ascending: false }).order('week', { ascending: true }).order('created_at', { ascending: false })
     }
     const { data: rows } = await query
     setData(rows ?? [])
