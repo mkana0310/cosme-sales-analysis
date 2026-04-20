@@ -98,12 +98,12 @@ function MonthlyView({ data, year, month }) {
   const weekly = data.filter(r => r.granularity === 'weekly')
   const monthly = data.find(r => r.granularity === 'monthly')
 
-  // 集計（月次データがあればそれを優先、なければ週次の合計）
+  // 行動指標：月次に入力あればそれを優先、なければ週次の合計
+  const sumVisitors = (monthly?.store_visitors != null) ? monthly.store_visitors : weekly.reduce((s, r) => s + (r.store_visitors || 0), 0)
+  const sumAP = (monthly?.ap_count != null) ? monthly.ap_count : weekly.reduce((s, r) => s + (r.ap_count || 0), 0)
+  const sumSC = (monthly?.sc_count != null) ? monthly.sc_count : weekly.reduce((s, r) => s + (r.sc_count || 0), 0)
+  const sumD3 = (monthly?.demo3_count != null) ? monthly.demo3_count : weekly.reduce((s, r) => s + (r.demo3_count || 0), 0)
   const useMonthly = monthly != null
-  const sumVisitors = useMonthly ? (monthly.store_visitors || 0) : weekly.reduce((s, r) => s + (r.store_visitors || 0), 0)
-  const sumAP = useMonthly ? (monthly.ap_count || 0) : weekly.reduce((s, r) => s + (r.ap_count || 0), 0)
-  const sumSC = useMonthly ? (monthly.sc_count || 0) : weekly.reduce((s, r) => s + (r.sc_count || 0), 0)
-  const sumD3 = useMonthly ? (monthly.demo3_count || 0) : weekly.reduce((s, r) => s + (r.demo3_count || 0), 0)
 
   // 売上は月次があればそちら、なければ週次の合計
   const base = monthly || (weekly.length ? weekly[weekly.length - 1] : null)
@@ -269,12 +269,31 @@ function WeekCard({ r }) {
   )
 }
 
+function lyColor(actual, base) {
+  if (!base) return 'var(--tl)'
+  const r = actual / base * 100
+  if (r >= 100) return 'var(--ok)'
+  if (r >= 80) return 'var(--warn)'
+  return 'var(--err)'
+}
+
+function rateColor(actual, target) {
+  if (!target) return 'var(--tl)'
+  const r = actual / target * 100
+  if (r >= 100) return 'var(--ok)'
+  if (r >= 80) return 'var(--warn)'
+  return 'var(--err)'
+}
+
 function WeekRow({ r }) {
   const dateLabel = r.start_date && r.end_date
     ? `${new Date(r.start_date).getMonth()+1}/${new Date(r.start_date).getDate()}〜${new Date(r.end_date).getMonth()+1}/${new Date(r.end_date).getDate()}`
     : `第${r.week}週`
   const atv = r.total_sales && r.total_customers ? Math.round(r.total_sales / r.total_customers) : null
   const lastyearAtv = r.lastyear_sales && r.lastyear_customers ? Math.round(r.lastyear_sales / r.lastyear_customers) : r.lastyear_atv
+
+  const apRate = r.ap_count && r.store_visitors ? r.ap_count / r.store_visitors * 100 : null
+  const scRate = r.sc_count && r.ap_count ? r.sc_count / r.ap_count * 100 : null
 
   return (
     <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
@@ -285,23 +304,29 @@ function WeekRow({ r }) {
         )}
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-        {r.store_visitors != null && (
-          <Tag label="入店LY" value={r.lastyear_visitors ? pct(r.store_visitors, r.lastyear_visitors) : `${r.store_visitors}人`} />
+        {r.store_visitors != null && r.lastyear_visitors && (
+          <Tag label="入店LY" value={pct(r.store_visitors, r.lastyear_visitors)}
+            color={lyColor(r.store_visitors, r.lastyear_visitors)} />
         )}
-        {r.ap_count != null && r.store_visitors && (
-          <Tag label="AP率" value={pct(r.ap_count, r.store_visitors)} />
+        {apRate != null && (
+          <Tag label="AP率" value={pct(r.ap_count, r.store_visitors)}
+            color={rateColor(apRate, 85)} />
         )}
-        {r.sc_count != null && r.ap_count && (
-          <Tag label="SC率" value={pct(r.sc_count, r.ap_count)} />
+        {scRate != null && (
+          <Tag label="SC率" value={pct(r.sc_count, r.ap_count)}
+            color={rateColor(scRate, 30)} />
         )}
-        {r.total_customers != null && (
-          <Tag label="客数LY" value={r.lastyear_customers ? pct(r.total_customers, r.lastyear_customers) : `${r.total_customers}人`} />
+        {r.total_customers != null && r.lastyear_customers && (
+          <Tag label="客数LY" value={pct(r.total_customers, r.lastyear_customers)}
+            color={lyColor(r.total_customers, r.lastyear_customers)} />
         )}
         {atv && lastyearAtv && (
-          <Tag label="ATVLY" value={pct(atv, lastyearAtv)} color={atv >= lastyearAtv ? 'var(--ok)' : 'var(--err)'} />
+          <Tag label="ATVLY" value={pct(atv, lastyearAtv)}
+            color={lyColor(atv, lastyearAtv)} />
         )}
         {r.budget_sales && (
-          <Tag label="達成率" value={pct(r.total_sales, r.budget_sales)} color="var(--p)" />
+          <Tag label="達成率" value={pct(r.total_sales, r.budget_sales)}
+            color={rateColor(r.total_sales, r.budget_sales)} />
         )}
       </div>
     </div>
