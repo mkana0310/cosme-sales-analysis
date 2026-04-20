@@ -11,6 +11,7 @@ const EMPTY = {
   total_sales: '', total_customers: '',
   budget_sales: '', lastyear_sales: '',
   budget_customers: '', lastyear_customers: '',
+  lastyear_visitors: '', lastyear_atv: '',
   nonmember_sales: '', nonmember_customers: '',
   memo: '',
 }
@@ -24,15 +25,34 @@ function calc(form) {
   const ts = Number(form.total_sales) || 0
   const bs = Number(form.budget_sales) || 0
   const ls = Number(form.lastyear_sales) || 0
+  const lc = Number(form.lastyear_customers) || 0
+  const lv = Number(form.lastyear_visitors) || 0
   const nms = Number(form.nonmember_sales) || 0
   const nmc = Number(form.nonmember_customers) || 0
+  const bc = Number(form.budget_customers) || 0
+
+  // 目標入店数・目標AP数（予算客数ベース）
+  const targetVisitors = bc ? Math.round(bc / 0.50) : 0
+  const targetAP = targetVisitors ? Math.round(targetVisitors * 0.85) : 0
+  const targetSC = targetAP ? Math.round(targetAP * 0.30) : 0
+  const targetD3 = targetAP ? Math.round(targetAP * 0.30) : 0
+
+  // ATV
+  const atv = tc ? Math.round(ts / tc) : 0
+  const lAtv = lc ? Math.round(ls / lc) : 0
+
   return {
     cvr:      sv ? ((tc / sv) * 100).toFixed(1) + '%' : '-',
     apRate:   sv ? ((ap / sv) * 100).toFixed(1) + '%' : '-',
-    scRate:   sv ? ((sc / sv) * 100).toFixed(1) + '%' : '-',
-    d3Rate:   sv ? ((d3 / sv) * 100).toFixed(1) + '%' : '-',
+    scRate:   ap ? ((sc / ap) * 100).toFixed(1) + '%' : '-',
+    d3Rate:   ap ? ((d3 / ap) * 100).toFixed(1) + '%' : '-',
     achievement: bs ? ((ts / bs) * 100).toFixed(1) + '%' : '-',
     yoy:      ls ? ((ts / ls) * 100).toFixed(1) + '%' : '-',
+    visitorYoy: lv ? ((sv / lv) * 100).toFixed(1) + '%' : '-',
+    atv:      atv ? '¥' + atv.toLocaleString() : '-',
+    atvYoy:   lAtv ? ((atv / lAtv) * 100).toFixed(1) + '%' : '-',
+    lAtv:     lAtv ? '¥' + lAtv.toLocaleString() : '-',
+    targetVisitors, targetAP, targetSC, targetD3,
     nonmemberUnitPrice: nmc ? Math.round(nms / nmc).toLocaleString() + '円' : '-',
     existingSales:     (ts && nms !== '') ? (ts - nms).toLocaleString() + '円' : '-',
     existingCustomers: (tc && nmc !== '') ? (tc - nmc) + '人' : '-',
@@ -76,6 +96,7 @@ export default function DataInputPage() {
         total_sales: d.total_sales ?? '', total_customers: d.total_customers ?? '',
         budget_sales: d.budget_sales ?? '', lastyear_sales: d.lastyear_sales ?? '',
         budget_customers: d.budget_customers ?? '', lastyear_customers: d.lastyear_customers ?? '',
+        lastyear_visitors: d.lastyear_visitors ?? '', lastyear_atv: d.lastyear_atv ?? '',
         nonmember_sales: d.nonmember_sales ?? '', nonmember_customers: d.nonmember_customers ?? '',
         memo: d.memo ?? '',
       }))
@@ -101,6 +122,7 @@ export default function DataInputPage() {
       total_sales: num(form.total_sales), total_customers: num(form.total_customers),
       budget_sales: num(form.budget_sales), lastyear_sales: num(form.lastyear_sales),
       budget_customers: num(form.budget_customers), lastyear_customers: num(form.lastyear_customers),
+      lastyear_visitors: num(form.lastyear_visitors), lastyear_atv: num(form.lastyear_atv),
       nonmember_sales: num(form.nonmember_sales), nonmember_customers: num(form.nonmember_customers),
       memo: form.memo || null,
     }
@@ -222,29 +244,29 @@ export default function DataInputPage() {
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tl)', marginBottom: 6 }}>目標 vs 実績</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                {Number(form.budget_customers) > 0 && (
-                  <RateBox label="入店数目標（客数予算÷50%）"
-                    value={`目標${Math.round(Number(form.budget_customers)/0.50)}人 / 実績${form.store_visitors || '-'}人`}
-                    highlight={Number(form.store_visitors) >= Math.round(Number(form.budget_customers)/0.50)}
+                {c.targetVisitors > 0 && (
+                  <RateBox label={`入店数目標（客数予算÷50%）`}
+                    value={`実績${form.store_visitors || '-'}人 / 目標${c.targetVisitors}人`}
+                    highlight={Number(form.store_visitors) >= c.targetVisitors}
+                    sub={Number(form.lastyear_visitors) > 0 ? `前年${form.lastyear_visitors}人（${c.visitorYoy}）` : null}
                   />
                 )}
-                <RateBox label="CVR（目標55%）"
-                  value={c.cvr}
+                <RateBox label="CVR（目標55%）" value={c.cvr}
                   highlight={Number(form.total_customers) / Number(form.store_visitors) >= 0.55}
                 />
-                {Number(form.store_visitors) > 0 && (
+                {c.targetAP > 0 && (
                   <>
-                    <RateBox label="AP（目標85%）"
-                      value={`実績${form.ap_count || '-'}件 / 目標${Math.round(Number(form.store_visitors)*0.85)}件`}
-                      highlight={Number(form.ap_count) >= Math.round(Number(form.store_visitors)*0.85)}
+                    <RateBox label={`AP率 ${c.apRate}（目標85%）`}
+                      value={`実績${form.ap_count || '-'}件 / 目標${c.targetAP}件`}
+                      highlight={Number(form.ap_count) >= c.targetAP}
                     />
-                    <RateBox label="SC（目標30%）"
-                      value={`実績${form.sc_count || '-'}件 / 目標${Math.round(Number(form.ap_count||0)*0.30)}件`}
-                      highlight={Number(form.sc_count) >= Math.round(Number(form.ap_count||0)*0.30)}
+                    <RateBox label={`SC率 ${c.scRate}（目標30%）`}
+                      value={`実績${form.sc_count || '-'}件 / 目標${c.targetSC}件`}
+                      highlight={Number(form.ap_count) >= c.targetAP && Number(form.sc_count) >= c.targetSC}
                     />
-                    <RateBox label="３デモ（目標30%）"
-                      value={`実績${form.demo3_count || '-'}件 / 目標${Math.round(Number(form.ap_count||0)*0.30)}件`}
-                      highlight={Number(form.demo3_count) >= Math.round(Number(form.ap_count||0)*0.30)}
+                    <RateBox label={`３デモ率 ${c.d3Rate}（目標30%）`}
+                      value={`実績${form.demo3_count || '-'}件 / 目標${c.targetD3}件`}
+                      highlight={Number(form.ap_count) >= c.targetAP && Number(form.demo3_count) >= c.targetD3}
                     />
                   </>
                 )}
@@ -268,10 +290,21 @@ export default function DataInputPage() {
             <NumField label="予算客数" value={form.budget_customers} onChange={v => set('budget_customers', v)} />
             <NumField label="前年客数" value={form.lastyear_customers} onChange={v => set('lastyear_customers', v)} />
           </div>
-          {(Number(form.budget_sales) > 0 || Number(form.lastyear_sales) > 0) && (
+          <div className="row" style={{ marginTop: 4 }}>
+            <NumField label="前年入店客数" value={form.lastyear_visitors} onChange={v => set('lastyear_visitors', v)} />
+            <NumField label="前年ATV（円）" value={form.lastyear_atv} onChange={v => set('lastyear_atv', v)} />
+          </div>
+
+          {(Number(form.budget_sales) > 0 || Number(form.lastyear_sales) > 0 || Number(form.total_sales) > 0) && (
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {form.budget_sales && <RateBox label="達成率" value={c.achievement} highlight />}
-              {form.lastyear_sales && <RateBox label="前年比" value={c.yoy} highlight />}
+              {form.lastyear_sales && <RateBox label="前年比（売上）" value={c.yoy} highlight />}
+              {Number(form.total_sales) > 0 && Number(form.total_customers) > 0 && (
+                <RateBox label="ATV（客単価）" value={c.atv} />
+              )}
+              {c.lAtv !== '-' && (
+                <RateBox label={`前年ATV ${c.lAtv}`} value={`ATV前年比 ${c.atvYoy}`} highlight={Number(c.atvYoy) >= 100} />
+              )}
             </div>
           )}
         </div>
@@ -325,13 +358,14 @@ function NumField({ label, value, onChange }) {
   )
 }
 
-function RateBox({ label, value, highlight }) {
+function RateBox({ label, value, highlight, sub }) {
   return (
     <div style={{ background: highlight ? 'var(--pl)' : 'var(--bg)', borderRadius: 8, padding: '8px 10px' }}>
       <div style={{ fontSize: 10, color: 'var(--tl)' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: highlight ? 'var(--p)' : 'var(--t)', marginTop: 2 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: highlight ? 'var(--p)' : 'var(--t)', marginTop: 2 }}>
         {value}
       </div>
+      {sub && <div style={{ fontSize: 10, color: 'var(--tl)', marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }

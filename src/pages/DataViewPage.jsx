@@ -111,7 +111,20 @@ function MonthlyView({ data, year, month }) {
   const budgetSales = base?.budget_sales
   const lastyearSales = base?.lastyear_sales
   const totalCustomers = base?.total_customers
+  const lastyearCustomers = base?.lastyear_customers
+  const lastyearVisitors = base?.lastyear_visitors
   const snapshotDate = base?.snapshot_date
+
+  // ATV計算
+  const atv = totalSales && totalCustomers ? Math.round(totalSales / totalCustomers) : null
+  const lastyearAtv = lastyearSales && lastyearCustomers ? Math.round(lastyearSales / lastyearCustomers) : (base?.lastyear_atv || null)
+
+  // 目標（予算客数ベース）
+  const bc = base?.budget_customers || 0
+  const targetVisitors = bc ? Math.round(bc / 0.50) : 0
+  const targetAP = targetVisitors ? Math.round(targetVisitors * 0.85) : 0
+  const targetSC = targetAP ? Math.round(targetAP * 0.30) : 0
+  const targetD3 = targetAP ? Math.round(targetAP * 0.30) : 0
 
   return (
     <>
@@ -142,13 +155,23 @@ function MonthlyView({ data, year, month }) {
         <div className="card">
           <div className="card-title">👥 行動指標{useMonthly ? '' : '（週次累計）'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {base?.budget_customers && (
-              <TargetStat label="入店数目標" actual={sumVisitors} target={Math.round(base.budget_customers / 0.50)} unit="人" />
+            {targetVisitors > 0 && (
+              <TargetStat label="入店数目標" actual={sumVisitors} target={targetVisitors} unit="人"
+                sub={lastyearVisitors ? `前年${lastyearVisitors}人（${pct(sumVisitors, lastyearVisitors)}）` : null}
+              />
             )}
             <BigStat label="CVR（目標55%）" value={pct(totalCustomers, sumVisitors)} highlight={totalCustomers / sumVisitors >= 0.55} />
-            <TargetStat label={`AP率 ${pct(sumAP, sumVisitors)}（目標85%）`} actual={sumAP} target={Math.round(sumVisitors * 0.85)} />
-            <TargetStat label={`SC率 ${pct(sumSC, sumAP)}（目標30%）`} actual={sumSC} target={Math.round(sumAP * 0.30)} />
-            <TargetStat label={`３デモ率 ${pct(sumD3, sumAP)}（目標30%）`} actual={sumD3} target={Math.round(sumAP * 0.30)} />
+            <TargetStat label={`AP率 ${pct(sumAP, sumVisitors)}（目標85%）`} actual={sumAP} target={targetAP} />
+            <TargetStat label={`SC率 ${pct(sumSC, sumAP)}（目標30%）`} actual={sumSC} target={targetSC}
+              apAchieved={sumAP >= targetAP} />
+            <TargetStat label={`３デモ率 ${pct(sumD3, sumAP)}（目標30%）`} actual={sumD3} target={targetD3}
+              apAchieved={sumAP >= targetAP} />
+            {atv && <BigStat label="ATV（客単価）" value={`¥${atv.toLocaleString()}`} />}
+            {lastyearAtv && atv && (
+              <BigStat label={`前年ATV ¥${lastyearAtv.toLocaleString()}`}
+                value={`ATV前年比 ${pct(atv, lastyearAtv)}`}
+                highlight={atv >= lastyearAtv} />
+            )}
           </div>
         </div>
       )}
@@ -262,15 +285,18 @@ function BigStat({ label, value, highlight }) {
   )
 }
 
-function TargetStat({ label, actual, target, unit = '件' }) {
+function TargetStat({ label, actual, target, unit = '件', apAchieved, sub }) {
   const r = rate(actual, target)
-  const achieved = actual >= target
+  const achieved = apAchieved !== undefined
+    ? apAchieved && actual >= target
+    : actual >= target
   return (
     <div style={{ background: achieved ? '#D1FAE5' : 'var(--bg)', borderRadius: 8, padding: '8px 10px' }}>
-      <div style={{ fontSize: 10, color: 'var(--tl)' }}>{label}（目標{target}）</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: achieved ? '#065F46' : 'var(--t)', marginTop: 2 }}>
+      <div style={{ fontSize: 10, color: 'var(--tl)' }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: achieved ? '#065F46' : 'var(--t)', marginTop: 2 }}>
         {actual ?? '-'}{unit} <span style={{ fontSize: 11, fontWeight: 400 }}>/ 目標{target}{unit} {r ? `(${r}%)` : ''}</span>
       </div>
+      {sub && <div style={{ fontSize: 10, color: 'var(--tl)', marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }
