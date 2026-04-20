@@ -98,11 +98,11 @@ function MonthlyView({ data, year, month }) {
   const weekly = data.filter(r => r.granularity === 'weekly')
   const monthly = data.find(r => r.granularity === 'monthly')
 
-  // 行動指標：月次に入力あればそれを優先、なければ週次の合計
-  const sumVisitors = (monthly?.store_visitors != null) ? monthly.store_visitors : weekly.reduce((s, r) => s + (r.store_visitors || 0), 0)
-  const sumAP = (monthly?.ap_count != null) ? monthly.ap_count : weekly.reduce((s, r) => s + (r.ap_count || 0), 0)
-  const sumSC = (monthly?.sc_count != null) ? monthly.sc_count : weekly.reduce((s, r) => s + (r.sc_count || 0), 0)
-  const sumD3 = (monthly?.demo3_count != null) ? monthly.demo3_count : weekly.reduce((s, r) => s + (r.demo3_count || 0), 0)
+  // 月次サマリーは月次入力データのみ使用
+  const sumVisitors = monthly?.store_visitors ?? null
+  const sumAP = monthly?.ap_count ?? null
+  const sumSC = monthly?.sc_count ?? null
+  const sumD3 = monthly?.demo3_count ?? null
   const useMonthly = monthly != null
 
   // 売上は月次があればそちら、なければ週次の合計
