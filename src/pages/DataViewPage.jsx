@@ -151,7 +151,7 @@ function MonthlyView({ data, year, month }) {
       )}
 
       {/* 行動指標サマリー */}
-      {sumVisitors > 0 && (
+      {(sumVisitors != null || sumAP != null) && (
         <div className="card">
           <div className="card-title">👥 行動指標{useMonthly ? '' : '（週次累計）'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
