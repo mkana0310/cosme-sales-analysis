@@ -128,8 +128,12 @@ function MonthlyView({ data, year, month }) {
 
   return (
     <>
-      {/* 売上サマリー */}
-      {totalSales != null && (
+      {!monthly && weekly.length === 0 && (
+        <div className="empty"><div className="empty-icon">📭</div><p>データがありません</p></div>
+      )}
+
+      {/* 売上サマリー（月次入力がある場合のみ） */}
+      {monthly && totalSales != null && (
         <div className="card">
           <div className="card-title">💰 売上サマリー{snapshotDate ? `（${new Date(snapshotDate).getMonth()+1}/${new Date(snapshotDate).getDate()}時点）` : ''}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -150,8 +154,8 @@ function MonthlyView({ data, year, month }) {
         </div>
       )}
 
-      {/* 行動指標サマリー */}
-      {(sumVisitors != null || sumAP != null) && (
+      {/* 行動指標サマリー（月次入力がある場合のみ） */}
+      {monthly && (sumVisitors != null || sumAP != null) && (
         <div className="card">
           <div className="card-title">👥 行動指標{useMonthly ? '' : '（週次累計）'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
