@@ -191,9 +191,11 @@ function MonthlyView({ data, year, month }) {
 
 function WeekCard({ r }) {
   const visitorTarget = r.budget_customers ? Math.round(r.budget_customers / 0.50) : null
-  const apTarget = Math.round((r.store_visitors || 0) * 0.85)
-  const scTarget = Math.round((r.ap_count || 0) * 0.30)
-  const d3Target = Math.round((r.ap_count || 0) * 0.30)
+  const apTarget = visitorTarget ? Math.round(visitorTarget * 0.85) : null
+  const scTarget = apTarget ? Math.round(apTarget * 0.30) : null
+  const d3Target = apTarget ? Math.round(apTarget * 0.30) : null
+  const atv = r.total_sales && r.total_customers ? Math.round(r.total_sales / r.total_customers) : null
+  const lastyearAtv = r.lastyear_sales && r.lastyear_customers ? Math.round(r.lastyear_sales / r.lastyear_customers) : r.lastyear_atv
   const dateLabel = r.start_date && r.end_date
     ? `${new Date(r.start_date).getMonth()+1}/${new Date(r.start_date).getDate()}〜${new Date(r.end_date).getMonth()+1}/${new Date(r.end_date).getDate()}`
     : `第${r.week}週`
@@ -220,11 +222,26 @@ function WeekCard({ r }) {
         <>
           <div className="card-title">👥 行動指標</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
-            {visitorTarget && <TargetStat label="入店数目標" actual={r.store_visitors} target={visitorTarget} unit="人" />}
+            {visitorTarget
+              ? <TargetStat label="入店数目標" actual={r.store_visitors} target={visitorTarget} unit="人"
+                  sub={r.lastyear_visitors ? `前年比 ${pct(r.store_visitors, r.lastyear_visitors)}` : null} />
+              : <BigStat label="入店数" value={`${r.store_visitors}人`} />
+            }
             <BigStat label="CVR（目標55%）" value={pct(r.total_customers, r.store_visitors)} highlight={r.total_customers / r.store_visitors >= 0.55} />
-            <TargetStat label={`AP率 ${pct(r.ap_count, r.store_visitors)}（目標85%）`} actual={r.ap_count} target={apTarget} />
-            <TargetStat label={`SC率 ${pct(r.sc_count, r.ap_count)}（目標30%）`} actual={r.sc_count} target={scTarget} />
-            <TargetStat label={`３デモ率 ${pct(r.demo3_count, r.ap_count)}（目標30%）`} actual={r.demo3_count} target={d3Target} />
+            {apTarget
+              ? <TargetStat label={`AP率 ${pct(r.ap_count, r.store_visitors)}（目標85%）`} actual={r.ap_count} target={apTarget} />
+              : <BigStat label={`AP率`} value={`${pct(r.ap_count, r.store_visitors)} / ${r.ap_count}件`} />
+            }
+            {scTarget
+              ? <TargetStat label={`SC率 ${pct(r.sc_count, r.ap_count)}（目標30%）`} actual={r.sc_count} target={scTarget} apAchieved={r.ap_count >= apTarget} />
+              : <BigStat label="SC率" value={`${pct(r.sc_count, r.ap_count)} / ${r.sc_count}件`} />
+            }
+            {d3Target
+              ? <TargetStat label={`３デモ率 ${pct(r.demo3_count, r.ap_count)}（目標30%）`} actual={r.demo3_count} target={d3Target} apAchieved={r.ap_count >= apTarget} />
+              : <BigStat label="３デモ率" value={`${pct(r.demo3_count, r.ap_count)} / ${r.demo3_count}件`} />
+            }
+            {atv && <BigStat label="ATV" value={`¥${atv.toLocaleString()}`} />}
+            {atv && lastyearAtv && <BigStat label="ATVLY" value={pct(atv, lastyearAtv)} highlight={atv >= lastyearAtv} />}
           </div>
         </>
       )}
@@ -256,6 +273,8 @@ function WeekRow({ r }) {
   const dateLabel = r.start_date && r.end_date
     ? `${new Date(r.start_date).getMonth()+1}/${new Date(r.start_date).getDate()}〜${new Date(r.end_date).getMonth()+1}/${new Date(r.end_date).getDate()}`
     : `第${r.week}週`
+  const atv = r.total_sales && r.total_customers ? Math.round(r.total_sales / r.total_customers) : null
+  const lastyearAtv = r.lastyear_sales && r.lastyear_customers ? Math.round(r.lastyear_sales / r.lastyear_customers) : r.lastyear_atv
 
   return (
     <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
@@ -265,12 +284,25 @@ function WeekRow({ r }) {
           <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--p)' }}>¥{fmt(r.total_sales)}</span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-        {r.store_visitors != null && <Tag label="入店" value={r.store_visitors} />}
-        {r.ap_count != null && <Tag label="AP" value={r.ap_count} />}
-        {r.sc_count != null && <Tag label="SC" value={r.sc_count} />}
-        {r.total_customers != null && <Tag label="客数" value={r.total_customers} />}
-        {r.budget_sales && <Tag label="達成率" value={pct(r.total_sales, r.budget_sales)} color="var(--p)" />}
+      <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+        {r.store_visitors != null && (
+          <Tag label="入店LY" value={r.lastyear_visitors ? pct(r.store_visitors, r.lastyear_visitors) : `${r.store_visitors}人`} />
+        )}
+        {r.ap_count != null && r.store_visitors && (
+          <Tag label="AP率" value={pct(r.ap_count, r.store_visitors)} />
+        )}
+        {r.sc_count != null && r.ap_count && (
+          <Tag label="SC率" value={pct(r.sc_count, r.ap_count)} />
+        )}
+        {r.total_customers != null && (
+          <Tag label="客数LY" value={r.lastyear_customers ? pct(r.total_customers, r.lastyear_customers) : `${r.total_customers}人`} />
+        )}
+        {atv && lastyearAtv && (
+          <Tag label="ATVLY" value={pct(atv, lastyearAtv)} color={atv >= lastyearAtv ? 'var(--ok)' : 'var(--err)'} />
+        )}
+        {r.budget_sales && (
+          <Tag label="達成率" value={pct(r.total_sales, r.budget_sales)} color="var(--p)" />
+        )}
       </div>
     </div>
   )
