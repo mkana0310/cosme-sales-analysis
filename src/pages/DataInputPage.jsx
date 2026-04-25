@@ -79,11 +79,13 @@ export default function DataInputPage() {
   useEffect(() => { checkExisting() }, [form.year, form.month, form.week, form.granularity])
 
   async function checkExisting() {
-    const { data } = await supabase
-      .from('results').select('*')
+    const isWeekly = form.granularity === 'weekly'
+    let query = supabase.from('results').select('*')
       .eq('year', form.year).eq('month', form.month)
-      .eq('week', form.week).eq('granularity', form.granularity)
-      .limit(1)
+      .eq('granularity', form.granularity)
+    if (isWeekly) query = query.eq('week', form.week)
+    const { data } = await query
+      .order('created_at', { ascending: false }).limit(1)
     if (data?.[0]) {
       setExistingId(data[0].id)
       const d = data[0]
@@ -111,8 +113,10 @@ export default function DataInputPage() {
 
   async function handleSave() {
     setSaving(true)
+    const isWeeklyNow = form.granularity === 'weekly'
+    const saveWeek = isWeeklyNow ? form.week : 0   // 月次は常にweek=0で固定
     const payload = {
-      year: form.year, month: form.month, week: form.week,
+      year: form.year, month: form.month, week: saveWeek,
       granularity: form.granularity,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
@@ -126,13 +130,14 @@ export default function DataInputPage() {
       nonmember_sales: num(form.nonmember_sales), nonmember_customers: num(form.nonmember_customers),
       memo: form.memo || null,
     }
-    // 保存直前に再度チェックして重複を防ぐ
+    // 保存直前に再度チェックして重複を防ぐ（月次はweek条件なし）
     let id = existingId
     if (!id) {
-      const { data: check } = await supabase.from('results').select('id')
+      let q = supabase.from('results').select('id')
         .eq('year', form.year).eq('month', form.month)
-        .eq('week', form.week).eq('granularity', form.granularity)
-        .order('created_at', { ascending: false }).limit(1)
+        .eq('granularity', form.granularity)
+      if (isWeeklyNow) q = q.eq('week', saveWeek)
+      const { data: check } = await q.order('created_at', { ascending: false }).limit(1)
       id = check?.[0]?.id ?? null
     }
 
