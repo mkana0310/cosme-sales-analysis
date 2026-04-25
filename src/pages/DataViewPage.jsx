@@ -193,7 +193,7 @@ function MonthlyView({ data }) {
             <ActionMetric
               label="AP率（目標85%）"
               actual={sumAP} target={targetAP} unit="件"
-              status={tri(sumAP, targetAP)}
+              status={triR(apRate, 0.85)}
               note={`入店数比 ${pct(sumAP, sumVisitors)}`}
             />
           )}
