@@ -297,7 +297,12 @@ export default function DataInputPage() {
           </div>
           <div className="row" style={{ marginTop: 4 }}>
             <NumField label="前年入店客数" value={form.lastyear_visitors} onChange={v => set('lastyear_visitors', v)} />
-            <NumField label="前年ATV（円）" value={form.lastyear_atv} onChange={v => set('lastyear_atv', v)} />
+            <div className="fg">
+              <label>前年ATV（自動計算）</label>
+              <div className="fi" style={{ background: 'var(--bg)', color: 'var(--tl)', display: 'flex', alignItems: 'center', fontSize: 14 }}>
+                {c.lAtv !== '-' ? c.lAtv : '—'}
+              </div>
+            </div>
           </div>
 
           {(Number(form.budget_sales) > 0 || Number(form.lastyear_sales) > 0 || Number(form.total_sales) > 0) && (
