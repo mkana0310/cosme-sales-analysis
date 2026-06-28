@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sales-analysis-v10';
+const CACHE_NAME = 'sales-analysis-v4';
 const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -10,24 +10,13 @@ self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => {
-      return self.clients.matchAll({type: 'window'}).then(clients => {
-        clients.forEach(c => c.postMessage({type: 'SW_UPDATED'}));
-      });
-    })
+    )
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request)
-      .then(r => {
-        const rc = r.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, rc));
-        return r;
-      })
-      .catch(() => caches.match(e.request))
+    caches.match(e.request).then(r => r || fetch(e.request))
   );
 });
